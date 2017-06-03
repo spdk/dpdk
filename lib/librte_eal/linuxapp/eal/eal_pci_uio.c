@@ -321,7 +321,7 @@ pci_uio_map_resource_by_index(struct rte_pci_device *dev, int res_idx,
 
 	/* update devname for mmap  */
 	snprintf(devname, sizeof(devname),
-			"%s/" PCI_PRI_FMT "/resource%d",
+			"%s/" PCI_PRI_FMT "/resource%d_wc",
 			pci_get_sysfs_path(),
 			loc->domain, loc->bus, loc->devid,
 			loc->function, res_idx);
@@ -335,13 +335,22 @@ pci_uio_map_resource_by_index(struct rte_pci_device *dev, int res_idx,
 	}
 
 	/*
-	 * open resource file, to mmap it
+	 * open prefetchable resource file first, try to mmap it
 	 */
 	fd = open(devname, O_RDWR);
 	if (fd < 0) {
-		RTE_LOG(ERR, EAL, "Cannot open %s: %s\n",
-				devname, strerror(errno));
-		goto error;
+		snprintf(devname, sizeof(devname),
+				"%s/" PCI_PRI_FMT "/resource%d",
+				pci_get_sysfs_path(),
+				loc->domain, loc->bus, loc->devid,
+				loc->function, res_idx);
+		/* then try to map resource file */
+		fd = open(devname, O_RDWR);
+		if (fd < 0) {
+			RTE_LOG(ERR, EAL, "Cannot open %s: %s\n",
+					devname, strerror(errno));
+			goto error;
+		}
 	}
 
 	/* try mapping somewhere close to the end of hugepages */
