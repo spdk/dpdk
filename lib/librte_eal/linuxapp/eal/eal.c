@@ -747,7 +747,7 @@ rte_eal_init(int argc, char **argv)
 	int i, fctret, ret;
 	pthread_t thread_id;
 	static rte_atomic32_t run_once = RTE_ATOMIC32_INIT(0);
-	const char *logid;
+	char *logid;
 	char cpuset[RTE_CPU_AFFINITY_STR_LEN];
 	char thread_name[RTE_MAX_THREAD_NAME_LEN];
 
@@ -759,6 +759,8 @@ rte_eal_init(int argc, char **argv)
 
 	logid = strrchr(argv[0], '/');
 	logid = strdup(logid ? logid + 1: argv[0]);
+	if (!logid)
+		return -1;
 
 	thread_id = pthread_self();
 
@@ -771,8 +773,10 @@ rte_eal_init(int argc, char **argv)
 		rte_panic("Cannot detect lcores\n");
 
 	fctret = eal_parse_args(argc, argv);
-	if (fctret < 0)
+	if (fctret < 0) {
+		free(logid);
 		exit(1);
+	}
 
 	if (internal_config.no_hugetlbfs == 0 &&
 			internal_config.process_type != RTE_PROC_SECONDARY &&
@@ -803,6 +807,7 @@ rte_eal_init(int argc, char **argv)
 	if (rte_eal_log_init(logid, internal_config.syslog_facility) < 0)
 		rte_panic("Cannot init logs\n");
 
+	free(logid);
 	if (rte_eal_pci_init() < 0)
 		rte_panic("Cannot init PCI\n");
 
