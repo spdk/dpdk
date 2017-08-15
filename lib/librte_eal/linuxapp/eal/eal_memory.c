@@ -652,6 +652,8 @@ create_shared_memory(const char *filename, const size_t mem_size)
 	}
 	retval = mmap(NULL, mem_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 	close(fd);
+	if (retval == (void *) -1)
+	    return NULL;
 	return retval;
 }
 
