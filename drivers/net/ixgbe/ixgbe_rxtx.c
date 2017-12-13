@@ -1589,6 +1589,7 @@ ixgbe_rx_alloc_bufs(struct ixgbe_rx_queue *rxq, bool reset_mbuf)
 		}
 
 		rte_mbuf_refcnt_set(mb, 1);
+                mb->next = NULL;
 		mb->data_off = RTE_PKTMBUF_HEADROOM;
 
 		/* populate the descriptors */

@@ -102,7 +102,6 @@ rte_pktmbuf_pool_init(struct rte_mempool *mp, void *opaque_arg)
 	}
 
 	RTE_ASSERT(mp->elt_size >= sizeof(struct rte_mbuf) +
-		user_mbp_priv->mbuf_data_room_size +
 		user_mbp_priv->mbuf_priv_size);
 
 	mbp_priv = rte_mempool_get_priv(mp);
@@ -233,6 +232,9 @@ rte_mbuf_sanity_check(const struct rte_mbuf *m, int is_header)
 	}
 	if (nb_segs != 0)
 		rte_panic("bad nb_segs\n");
+        if (m_seg != NULL)
+                rte_panic("bad m_seg\n");
+
 }
 
 /* dump a mbuf on console */
