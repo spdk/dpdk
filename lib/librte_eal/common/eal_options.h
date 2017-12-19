@@ -55,6 +55,8 @@ enum {
 	OPT_VFIO_INTR_NUM,
 #define OPT_VMWARE_TSC_MAP    "vmware-tsc-map"
 	OPT_VMWARE_TSC_MAP_NUM,
+#define OPT_SINGLE_FILE_SEGMENTS    "single-file-segments"
+	OPT_SINGLE_FILE_SEGMENTS_NUM,
 	OPT_LONG_MAX_NUM
 };
 

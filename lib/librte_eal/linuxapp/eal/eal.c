@@ -348,6 +348,7 @@ eal_usage(const char *prgname)
 	       "  --"OPT_BASE_VIRTADDR"     Base virtual address\n"
 	       "  --"OPT_CREATE_UIO_DEV"    Create /dev/uioX (usually done by hotplug)\n"
 	       "  --"OPT_VFIO_INTR"         Interrupt mode for VFIO (legacy|msi|msix)\n"
+	       "  --"OPT_SINGLE_FILE_SEGMENTS" Put all hugepage memory in single files\n"
 	       "\n");
 	/* Allow the application to print its usage message too if hook is set */
 	if ( rte_application_usage_hook ) {
