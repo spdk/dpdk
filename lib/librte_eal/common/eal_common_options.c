@@ -73,6 +73,7 @@ eal_long_options[] = {
 	{OPT_VDEV,              1, NULL, OPT_VDEV_NUM             },
 	{OPT_VFIO_INTR,         1, NULL, OPT_VFIO_INTR_NUM        },
 	{OPT_VMWARE_TSC_MAP,    0, NULL, OPT_VMWARE_TSC_MAP_NUM   },
+	{OPT_SINGLE_FILE_SEGMENTS, 0, NULL, OPT_SINGLE_FILE_SEGMENTS_NUM},
 	{0,                     0, NULL, 0                        }
 };
 
@@ -1159,6 +1160,9 @@ eal_parse_common_option(int opt, const char *optarg,
 		}
 
 		core_parsed = LCORE_OPT_MAP;
+		break;
+	case OPT_SINGLE_FILE_SEGMENTS_NUM:
+		conf->single_file_segments = 1;
 		break;
 
 	/* don't know what to do, leave this to caller */
