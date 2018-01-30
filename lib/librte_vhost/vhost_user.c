@@ -83,7 +83,15 @@ free_mem_region(struct virtio_net *dev)
 void
 vhost_backend_cleanup(struct virtio_net *dev)
 {
+	uint32_t i;
+
 	if (dev->mem) {
+		if (dev->has_new_mem_table) {
+			for (i = 0; i < dev->mem->nregions; i++) {
+				close(dev->mem_table_fds[i]);
+			}
+			dev->has_new_mem_table = 0;
+		}
 		free_mem_region(dev);
 		rte_free(dev->mem);
 		dev->mem = NULL;
@@ -384,6 +392,7 @@ qva_to_vva(struct virtio_net *dev, uint64_t qva)
 	return 0;
 }
 
+static int vhost_setup_mem_table(struct virtio_net *dev);
 
 /*
  * Converts ring address to Vhost virtual address.
@@ -482,6 +491,11 @@ vhost_user_set_vring_addr(struct virtio_net **pdev, VhostUserMsg *msg)
 	struct vhost_virtqueue *vq;
 	struct vhost_vring_addr *addr = &msg->payload.addr;
 	struct virtio_net *dev = *pdev;
+
+	if (dev->has_new_mem_table) {
+		vhost_setup_mem_table(dev);
+		dev->has_new_mem_table = 0;
+	}
 
 	if (dev->mem == NULL)
 		return -1;
@@ -636,7 +650,30 @@ vhost_memory_changed(struct VhostUserMemory *new,
 static int
 vhost_user_set_mem_table(struct virtio_net *dev, struct VhostUserMsg *pmsg)
 {
-	struct VhostUserMemory memory = pmsg->payload.memory;
+	uint32_t i;
+
+	if (dev->has_new_mem_table) {
+		/*
+		 * The previous mem table was not consumed, so close the
+		 *  file descriptors from that mem table before copying
+		 *  the new one.
+		 */
+		for (i = 0; i < dev->mem_table.nregions; i++) {
+			close(dev->mem_table_fds[i]);
+		}
+	}
+
+	memcpy(&dev->mem_table, &pmsg->payload.memory, sizeof(dev->mem_table));
+	memcpy(dev->mem_table_fds, pmsg->fds, sizeof(dev->mem_table_fds));
+	dev->has_new_mem_table = 1;
+
+	return 0;
+}
+
+static int
+vhost_setup_mem_table(struct virtio_net *dev)
+{
+	struct VhostUserMemory memory = dev->mem_table;
 	struct rte_vhost_mem_region *reg;
 	void *mmap_addr;
 	uint64_t mmap_size;
@@ -649,8 +686,10 @@ vhost_user_set_mem_table(struct virtio_net *dev, struct VhostUserMsg *pmsg)
 		RTE_LOG(INFO, VHOST_CONFIG,
 			"(%d) memory regions not changed\n", dev->vid);
 
-		for (i = 0; i < memory.nregions; i++)
-			close(pmsg->fds[i]);
+		for (i = 0; i < memory.nregions; i++) {
+			fd = dev->mem_table_fds[i];
+			close(fd);
+		}
 
 		return 0;
 	}
@@ -686,7 +725,7 @@ vhost_user_set_mem_table(struct virtio_net *dev, struct VhostUserMsg *pmsg)
 	dev->mem->nregions = memory.nregions;
 
 	for (i = 0; i < memory.nregions; i++) {
-		fd  = pmsg->fds[i];
+		fd  = dev->mem_table_fds[i];
 		reg = &dev->mem->regions[i];
 
 		reg->guest_phys_addr = memory.regions[i].guest_phys_addr;
