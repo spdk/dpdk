@@ -725,7 +725,7 @@ rte_vhost_driver_unregister(const char *path)
 {
 	int i;
 	int count;
-	struct vhost_user_connection *conn, *next;
+	struct vhost_user_connection *conn;
 
 	pthread_mutex_lock(&vhost_user.mutex);
 
@@ -742,21 +742,16 @@ rte_vhost_driver_unregister(const char *path)
 			}
 
 			pthread_mutex_lock(&vsocket->conn_mutex);
-			for (conn = TAILQ_FIRST(&vsocket->conn_list);
-			     conn != NULL;
-			     conn = next) {
-				next = TAILQ_NEXT(conn, next);
-
-				fdset_del(&vhost_user.fdset, conn->connfd);
-				RTE_LOG(INFO, VHOST_CONFIG,
-					"free connfd = %d for device '%s'\n",
-					conn->connfd, path);
+			TAILQ_FOREACH(conn, &vsocket->conn_list, next) {
 				close(conn->connfd);
-				vhost_destroy_device(conn->vid);
-				TAILQ_REMOVE(&vsocket->conn_list, conn, next);
-				free(conn);
 			}
 			pthread_mutex_unlock(&vsocket->conn_mutex);
+
+			do {
+				pthread_mutex_lock(&vsocket->conn_mutex);
+				conn = TAILQ_FIRST(&vsocket->conn_list);
+				pthread_mutex_unlock(&vsocket->conn_mutex);
+			} while (conn != NULL);
 
 			pthread_mutex_destroy(&vsocket->conn_mutex);
 			free(vsocket->path);
