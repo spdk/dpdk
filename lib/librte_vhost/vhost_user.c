@@ -535,7 +535,7 @@ vhost_user_set_vring_base(struct virtio_net *dev,
 	return 0;
 }
 
-static void
+static int
 add_one_guest_page(struct virtio_net *dev, uint64_t guest_phys_addr,
 		   uint64_t host_phys_addr, uint64_t size)
 {
@@ -545,6 +545,10 @@ add_one_guest_page(struct virtio_net *dev, uint64_t guest_phys_addr,
 		dev->max_guest_pages *= 2;
 		dev->guest_pages = realloc(dev->guest_pages,
 					dev->max_guest_pages * sizeof(*page));
+		if (!dev->guest_pages) {
+			RTE_LOG(ERR, VHOST_CONFIG, "cannot realloc guest_pages\n");
+			return -1;
+		}
 	}
 
 	if (dev->nr_guest_pages > 0) {
@@ -553,7 +557,7 @@ add_one_guest_page(struct virtio_net *dev, uint64_t guest_phys_addr,
 		if (host_phys_addr == last_page->host_phys_addr +
 				      last_page->size) {
 			last_page->size += size;
-			return;
+			return 0;
 		}
 	}
 
@@ -561,9 +565,11 @@ add_one_guest_page(struct virtio_net *dev, uint64_t guest_phys_addr,
 	page->guest_phys_addr = guest_phys_addr;
 	page->host_phys_addr  = host_phys_addr;
 	page->size = size;
+
+	return 0;
 }
 
-static void
+static int
 add_guest_pages(struct virtio_net *dev, struct rte_vhost_mem_region *reg,
 		uint64_t page_size)
 {
@@ -577,7 +583,9 @@ add_guest_pages(struct virtio_net *dev, struct rte_vhost_mem_region *reg,
 	size = page_size - (guest_phys_addr & (page_size - 1));
 	size = RTE_MIN(size, reg_size);
 
-	add_one_guest_page(dev, guest_phys_addr, host_phys_addr, size);
+	if (add_one_guest_page(dev, guest_phys_addr, host_phys_addr, size) < 0)
+		return -1;
+
 	host_user_addr  += size;
 	guest_phys_addr += size;
 	reg_size -= size;
@@ -586,12 +594,16 @@ add_guest_pages(struct virtio_net *dev, struct rte_vhost_mem_region *reg,
 		size = RTE_MIN(reg_size, page_size);
 		host_phys_addr = rte_mem_virt2iova((void *)(uintptr_t)
 						  host_user_addr);
-		add_one_guest_page(dev, guest_phys_addr, host_phys_addr, size);
+		if (add_one_guest_page(dev, guest_phys_addr, host_phys_addr,
+				size) < 0)
+			return -1;
 
 		host_user_addr  += size;
 		guest_phys_addr += size;
 		reg_size -= size;
 	}
+
+	return 0;
 }
 
 #ifdef RTE_LIBRTE_VHOST_DEBUG
@@ -764,7 +776,12 @@ vhost_setup_mem_table(struct virtio_net *dev)
 				      mmap_offset;
 
 		if (dev->dequeue_zero_copy)
-			add_guest_pages(dev, reg, alignment);
+			if (add_guest_pages(dev, reg, alignment) < 0) {
+				RTE_LOG(ERR, VHOST_CONFIG,
+					"adding guest pages to region %u failed.\n",
+					i);
+				goto err_mmap;
+			}
 
 		RTE_LOG(INFO, VHOST_CONFIG,
 			"guest memory region %u, size: 0x%" PRIx64 "\n"
