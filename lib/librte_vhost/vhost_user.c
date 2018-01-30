@@ -132,10 +132,7 @@ vhost_user_reset_owner(struct virtio_net *dev)
 static uint64_t
 vhost_user_get_features(struct virtio_net *dev)
 {
-	uint64_t features = 0;
-
-	rte_vhost_driver_get_features(dev->ifname, &features);
-	return features;
+	return dev->features;
 }
 
 /*
@@ -146,7 +143,7 @@ vhost_user_set_features(struct virtio_net *dev, uint64_t features)
 {
 	uint64_t vhost_features = 0;
 
-	rte_vhost_driver_get_features(dev->ifname, &vhost_features);
+	vhost_features = vhost_user_get_features(dev);
 	if (features & ~vhost_features) {
 		RTE_LOG(ERR, VHOST_CONFIG,
 			"(%d) received invalid negotiated features.\n",
@@ -155,7 +152,7 @@ vhost_user_set_features(struct virtio_net *dev, uint64_t features)
 	}
 
 	if (dev->flags & VIRTIO_DEV_RUNNING) {
-		if (dev->features == features)
+		if (dev->negotiated_features == features)
 			return 0;
 
 		/*
@@ -163,7 +160,7 @@ vhost_user_set_features(struct virtio_net *dev, uint64_t features)
 		 * in running state. The exception being VHOST_F_LOG_ALL, which
 		 * is enabled when the live-migration starts.
 		 */
-		if ((dev->features ^ features) & ~(1ULL << VHOST_F_LOG_ALL)) {
+		if ((dev->negotiated_features ^ features) & ~(1ULL << VHOST_F_LOG_ALL)) {
 			RTE_LOG(ERR, VHOST_CONFIG,
 				"(%d) features changed while device is running.\n",
 				dev->vid);
@@ -178,8 +175,8 @@ vhost_user_set_features(struct virtio_net *dev, uint64_t features)
 		}
 	}
 
-	dev->features = features;
-	if (dev->features &
+	dev->negotiated_features = features;
+	if (dev->negotiated_features &
 		((1 << VIRTIO_NET_F_MRG_RXBUF) | (1ULL << VIRTIO_F_VERSION_1))) {
 		dev->vhost_hlen = sizeof(struct virtio_net_hdr_mrg_rxbuf);
 	} else {
@@ -188,8 +185,8 @@ vhost_user_set_features(struct virtio_net *dev, uint64_t features)
 	LOG_DEBUG(VHOST_CONFIG,
 		"(%d) mergeable RX buffers %s, virtio 1 %s\n",
 		dev->vid,
-		(dev->features & (1 << VIRTIO_NET_F_MRG_RXBUF)) ? "on" : "off",
-		(dev->features & (1ULL << VIRTIO_F_VERSION_1)) ? "on" : "off");
+		(dev->negotiated_features & (1 << VIRTIO_NET_F_MRG_RXBUF)) ? "on" : "off",
+		(dev->negotiated_features & (1ULL << VIRTIO_F_VERSION_1)) ? "on" : "off");
 
 	if (!(dev->features & (1ULL << VIRTIO_NET_F_MQ))) {
 		/*
@@ -398,7 +395,7 @@ static uint64_t
 ring_addr_to_vva(struct virtio_net *dev, struct vhost_virtqueue *vq,
 		uint64_t ra, uint64_t size)
 {
-	if (dev->features & (1ULL << VIRTIO_F_IOMMU_PLATFORM)) {
+	if (dev->negotiated_features & (1ULL << VIRTIO_F_IOMMU_PLATFORM)) {
 		uint64_t vva;
 
 		vva = vhost_user_iotlb_cache_find(vq, ra,
@@ -507,7 +504,7 @@ vhost_user_set_vring_addr(struct virtio_net **pdev, VhostUserMsg *msg)
 
 	vring_invalidate(dev, vq);
 
-	if (vq->enabled && (dev->features &
+	if (vq->enabled && (dev->negotiated_features &
 				(1ULL << VHOST_USER_F_PROTOCOL_FEATURES))) {
 		dev = translate_ring_addresses(dev, msg->payload.state.index);
 		if (!dev)
@@ -878,7 +875,7 @@ vhost_user_set_vring_kick(struct virtio_net **pdev, struct VhostUserMsg *pmsg)
 	 * the ring starts already enabled. Otherwise, it is enabled via
 	 * the SET_VRING_ENABLE message.
 	 */
-	if (!(dev->features & (1ULL << VHOST_USER_F_PROTOCOL_FEATURES)))
+	if (!(dev->negotiated_features & (1ULL << VHOST_USER_F_PROTOCOL_FEATURES)))
 		vq->enabled = 1;
 
 	if (vq->kickfd >= 0)
