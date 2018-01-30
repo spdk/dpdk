@@ -62,6 +62,9 @@ struct rte_vhost_vring {
 
 	int			kickfd;
 	uint16_t		size;
+
+	uint16_t		last_avail_idx;
+	uint16_t		last_used_idx;
 };
 
 /**
@@ -433,6 +436,27 @@ int rte_vhost_vring_call(int vid, uint16_t vring_idx);
  *  num of desc available
  */
 uint32_t rte_vhost_rx_queue_count(int vid, uint16_t qid);
+
+/**
+ * Set id of the last descriptors in avail and used guest vrings.
+ *
+ * In case user application operates directly on buffers, it should use this
+ * function on device destruction to retrieve the same values later on in device
+ * creation via rte_vhost_get_vhost_vring(int, uint16_t, struct rte_vhost_vring *)
+ *
+ * @param vid
+ *  vhost device ID
+ * @param vring_idx
+ *  vring index
+ * @param last_avail_idx
+ *  id of the last descriptor in avail ring to be set
+ * @param last_used_idx
+ *  id of the last descriptor in used ring to be set
+ * @return
+ *  0 on success, -1 on failure
+ */
+int rte_vhost_set_vhost_vring_last_idx(int vid, uint16_t vring_idx,
+			      uint16_t last_avail_idx, uint16_t last_used_idx);
 
 #ifdef __cplusplus
 }
