@@ -20,6 +20,11 @@
 
 #include "rte_vhost.h"
 
+#if 1
+/* FIXIT: Workaround for "struct VhostUserMemory" declaration */
+#include "vhost_user.h"
+#endif
+
 /* Used to indicate that the device is running on a data core */
 #define VIRTIO_DEV_RUNNING 1
 /* Used to indicate that the device is ready to operate */
@@ -238,6 +243,9 @@ struct virtio_net {
 	uint32_t		nr_guest_pages;
 	uint32_t		max_guest_pages;
 	struct guest_page       *guest_pages;
+	int                     has_new_mem_table;
+	struct VhostUserMemory  mem_table;
+	int                     mem_table_fds[VHOST_MEMORY_MAX_NREGIONS];
 
 	int			slave_req_fd;
 } __rte_cache_aligned;
