@@ -490,6 +490,9 @@ rte_vhost_get_vhost_vring(int vid, uint16_t vring_idx,
 	vring->kickfd  = vq->kickfd;
 	vring->size    = vq->size;
 
+	vring->last_avail_idx = vq->last_avail_idx;
+	vring->last_used_idx = vq->last_used_idx;
+
 	return 0;
 }
 
@@ -604,4 +607,28 @@ rte_vhost_rx_queue_count(int vid, uint16_t qid)
 		return 0;
 
 	return *((volatile uint16_t *)&vq->avail->idx) - vq->last_avail_idx;
+}
+
+int
+rte_vhost_set_vhost_vring_last_idx(int vid, uint16_t vring_idx,
+			      uint16_t last_avail_idx, uint16_t last_used_idx)
+{
+	struct virtio_net *dev;
+	struct vhost_virtqueue *vq;
+
+	dev = get_device(vid);
+	if (!dev)
+		return -1;
+
+	if (vring_idx >= VHOST_MAX_VRING)
+		return -1;
+
+	vq = dev->virtqueue[vring_idx];
+	if (!vq)
+		return -1;
+
+	vq->last_avail_idx = last_avail_idx;
+	vq->last_used_idx = last_used_idx;
+
+	return 0;
 }
