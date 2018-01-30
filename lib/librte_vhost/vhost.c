@@ -249,7 +249,7 @@ reset_device(struct virtio_net *dev)
 {
 	uint32_t i;
 
-	dev->features = 0;
+	dev->negotiated_features = 0;
 	dev->protocol_features = 0;
 	dev->flags = 0;
 
@@ -262,7 +262,7 @@ reset_device(struct virtio_net *dev)
  * there is a new virtio device being attached).
  */
 int
-vhost_new_device(void)
+vhost_new_device(uint64_t features)
 {
 	struct virtio_net *dev;
 	int i;
@@ -288,6 +288,7 @@ vhost_new_device(void)
 	vhost_devices[i] = dev;
 	dev->vid = i;
 	dev->slave_req_fd = -1;
+	dev->features = features;
 
 	return i;
 }
@@ -354,7 +355,7 @@ rte_vhost_get_mtu(int vid, uint16_t *mtu)
 	if (!(dev->flags & VIRTIO_DEV_READY))
 		return -EAGAIN;
 
-	if (!(dev->features & (1ULL << VIRTIO_NET_F_MTU)))
+	if (!(dev->negotiated_features & VIRTIO_NET_F_MTU))
 		return -ENOTSUP;
 
 	*mtu = dev->mtu;
@@ -436,7 +437,7 @@ rte_vhost_get_negotiated_features(int vid, uint64_t *features)
 	if (!dev)
 		return -1;
 
-	*features = dev->features;
+	*features = dev->negotiated_features;
 	return 0;
 }
 
