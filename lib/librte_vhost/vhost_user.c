@@ -172,6 +172,10 @@ vhost_user_set_features(struct virtio_net *dev, uint64_t features)
 
 		if (dev->notify_ops->features_changed)
 			dev->notify_ops->features_changed(dev->vid, features);
+		else {
+			dev->flags &= ~VIRTIO_DEV_RUNNING;
+			dev->notify_ops->destroy_device(dev->vid);
+		}
 	}
 
 	dev->features = features;
@@ -485,6 +489,12 @@ vhost_user_set_vring_addr(struct virtio_net **pdev, VhostUserMsg *msg)
 
 	if (dev->mem == NULL)
 		return -1;
+
+	/* Remove from the data plane. */
+	if (dev->flags & VIRTIO_DEV_RUNNING) {
+		dev->flags &= ~VIRTIO_DEV_RUNNING;
+	        dev->notify_ops->destroy_device(dev->vid);
+	}
 
 	/* addr->index refers to the queue index. The txq 1, rxq is 0. */
 	vq = dev->virtqueue[msg->payload.addr.index];
@@ -992,6 +1002,12 @@ vhost_user_set_protocol_features(struct virtio_net *dev,
 	if (protocol_features & ~VHOST_USER_PROTOCOL_FEATURES)
 		return;
 
+	/* Remove from the data plane. */
+	if (dev->flags & VIRTIO_DEV_RUNNING) {
+		dev->flags &= ~VIRTIO_DEV_RUNNING;
+		dev->notify_ops->destroy_device(dev->vid);
+	}
+
 	dev->protocol_features = protocol_features;
 }
 
@@ -1012,6 +1028,12 @@ vhost_user_set_log_base(struct virtio_net *dev, struct VhostUserMsg *msg)
 			"invalid log base msg size: %"PRId32" != %d\n",
 			msg->size, (int)sizeof(VhostUserLog));
 		return -1;
+	}
+
+	/* Remove from the data plane. */
+	if (dev->flags & VIRTIO_DEV_RUNNING) {
+		dev->flags &= ~VIRTIO_DEV_RUNNING;
+	        dev->notify_ops->destroy_device(dev->vid);
 	}
 
 	size = msg->payload.log.mmap_size;
