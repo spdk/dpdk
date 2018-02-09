@@ -22,6 +22,30 @@
       "revId": "71bfd6ab8e6ec38cab53983372bcadab4e6e0600",
       "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
       "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "eee435e6_a87720b7",
+        "filename": "lib/librte_vhost/vhost_user.c",
+        "patchSetId": 2
+      },
+      "lineNbr": 576,
+      "author": {
+        "id": 1013008
+      },
+      "writtenOn": "2018-02-09T12:13:01Z",
+      "side": 1,
+      "message": "No, this is preferable way to catch single statement blocks in DPDK.\n\nWith braces checkpatch.pl generates warning: \"WARNING:BRACES: braces {} are not necessary for single statement blocks\"",
+      "parentUuid": "4c7454c1_ae89eb9e",
+      "range": {
+        "startLine": 575,
+        "startChar": 1,
+        "endLine": 576,
+        "endChar": 12
+      },
+      "revId": "71bfd6ab8e6ec38cab53983372bcadab4e6e0600",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
     }
   ]
 }
