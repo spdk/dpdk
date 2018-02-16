@@ -50,6 +50,8 @@ static const char *vhost_message_str[VHOST_USER_MAX] = {
 	[VHOST_USER_NET_SET_MTU]  = "VHOST_USER_NET_SET_MTU",
 	[VHOST_USER_SET_SLAVE_REQ_FD]  = "VHOST_USER_SET_SLAVE_REQ_FD",
 	[VHOST_USER_IOTLB_MSG]  = "VHOST_USER_IOTLB_MSG",
+	[VHOST_USER_GET_CONFIG] = "VHOST_USER_GET_CONFIG",
+	[VHOST_USER_SET_CONFIG] = "VHOST_USER_SET_CONFIG",
 };
 
 static uint64_t
@@ -1458,6 +1460,7 @@ vhost_user_msg_handler(int vid, int fd)
 	 * Otherwise taking the access_lock would cause a dead lock.
 	 */
 	switch (msg.request.master) {
+	case VHOST_USER_SET_CONFIG:
 	case VHOST_USER_SET_FEATURES:
 	case VHOST_USER_SET_PROTOCOL_FEATURES:
 	case VHOST_USER_SET_OWNER:
@@ -1484,6 +1487,26 @@ vhost_user_msg_handler(int vid, int fd)
 	}
 
 	switch (msg.request.master) {
+	case VHOST_USER_GET_CONFIG:
+		if (dev->notify_ops->get_config(dev->vid,
+				msg.payload.config.region,
+				msg.payload.config.size) != 0) {
+			msg.size = sizeof(uint64_t);
+		}
+		//send_vhost_message(fd, &msg);
+		send_vhost_reply(fd, &msg);
+		break;
+	case VHOST_USER_SET_CONFIG:
+		if ((dev->notify_ops->set_config(dev->vid,
+				msg.payload.config.region,
+				msg.payload.config.offset,
+				msg.payload.config.size,
+				msg.payload.config.flags)) != 0) {
+			ret = 1;
+		} else {
+			ret = 0;
+		}
+		break;
 	case VHOST_USER_GET_FEATURES:
 		msg.payload.u64 = vhost_user_get_features(dev);
 		msg.size = sizeof(msg.payload.u64);
