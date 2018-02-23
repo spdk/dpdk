@@ -82,6 +82,7 @@ eal_long_options[] = {
 	{OPT_HELP,              0, NULL, OPT_HELP_NUM             },
 	{OPT_HUGE_DIR,          1, NULL, OPT_HUGE_DIR_NUM         },
 	{OPT_HUGE_UNLINK,       0, NULL, OPT_HUGE_UNLINK_NUM      },
+	{OPT_HUGE_SINGLE_SEG,   0, NULL, OPT_HUGE_SINGLE_SEG_NUM  },
 	{OPT_LCORES,            1, NULL, OPT_LCORES_NUM           },
 	{OPT_LOG_LEVEL,         1, NULL, OPT_LOG_LEVEL_NUM        },
 	{OPT_MASTER_LCORE,      1, NULL, OPT_MASTER_LCORE_NUM     },
@@ -197,6 +198,7 @@ eal_reset_internal_config(struct internal_config *internal_cfg)
 	internal_cfg->force_nchannel = 0;
 	internal_cfg->hugefile_prefix = HUGEFILE_PREFIX_DEFAULT;
 	internal_cfg->hugepage_dir = NULL;
+	internal_cfg->hugepage_single_segments = 0;
 	internal_cfg->force_sockets = 0;
 	/* zero out the NUMA config */
 	for (i = 0; i < RTE_MAX_NUMA_NODES; i++)
@@ -1092,6 +1094,10 @@ eal_parse_common_option(int opt, const char *optarg,
 	/* long options */
 	case OPT_HUGE_UNLINK_NUM:
 		conf->hugepage_unlink = 1;
+		break;
+
+	case OPT_HUGE_SINGLE_SEG_NUM:
+		conf->hugepage_single_segments = 1;
 		break;
 
 	case OPT_NO_HUGE_NUM:

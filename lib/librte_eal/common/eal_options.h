@@ -55,6 +55,8 @@ enum {
 	OPT_HUGE_DIR_NUM,
 #define OPT_HUGE_UNLINK       "huge-unlink"
 	OPT_HUGE_UNLINK_NUM,
+#define OPT_HUGE_SINGLE_SEG   "huge-single-seg"
+	OPT_HUGE_SINGLE_SEG_NUM,
 #define OPT_LCORES            "lcores"
 	OPT_LCORES_NUM,
 #define OPT_LOG_LEVEL         "log-level"

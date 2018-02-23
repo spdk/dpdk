@@ -65,6 +65,8 @@ struct internal_config {
 	volatile unsigned force_nrank;    /**< force number of ranks */
 	volatile unsigned no_hugetlbfs;   /**< true to disable hugetlbfs */
 	unsigned hugepage_unlink;         /**< true to unlink backing files */
+	/**< true to create one hugetlbfs file per memzone */
+	volatile unsigned hugepage_single_segments;
 	volatile unsigned no_pci;         /**< true to disable PCI */
 	volatile unsigned no_hpet;        /**< true to disable HPET */
 	volatile unsigned vmware_tsc_map; /**< true to use VMware TSC mapping

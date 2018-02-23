@@ -384,10 +384,6 @@ map_all_hugepages(struct hugepage_file *hugepg_tbl, struct hugepage_info *hpi,
 	}
 #endif
 
-#ifdef RTE_EAL_SINGLE_FILE_SEGMENTS
-	RTE_SET_USED(vma_len);
-#endif
-
 	for (i = 0; i < hpi->num_pages[0]; i++) {
 		uint64_t hugepage_sz = hpi->hugepage_sz;
 
@@ -426,15 +422,16 @@ map_all_hugepages(struct hugepage_file *hugepg_tbl, struct hugepage_info *hpi,
 		if (orig) {
 			hugepg_tbl[i].file_id = i;
 			hugepg_tbl[i].size = hugepage_sz;
-#ifdef RTE_EAL_SINGLE_FILE_SEGMENTS
-			eal_get_hugefile_temp_path(hugepg_tbl[i].filepath,
-					sizeof(hugepg_tbl[i].filepath), hpi->hugedir,
-					hugepg_tbl[i].file_id);
-#else
-			eal_get_hugefile_path(hugepg_tbl[i].filepath,
-					sizeof(hugepg_tbl[i].filepath), hpi->hugedir,
-					hugepg_tbl[i].file_id);
-#endif
+			hugepg_tbl[i].repeated = 1;
+			if (internal_config.hugepage_single_segments) {
+				eal_get_hugefile_temp_path(hugepg_tbl[i].filepath,
+						sizeof(hugepg_tbl[i].filepath), hpi->hugedir,
+						hugepg_tbl[i].file_id);
+			} else {
+				eal_get_hugefile_path(hugepg_tbl[i].filepath,
+						sizeof(hugepg_tbl[i].filepath), hpi->hugedir,
+						hugepg_tbl[i].file_id);
+			}
 			hugepg_tbl[i].filepath[sizeof(hugepg_tbl[i].filepath) - 1] = '\0';
 		}
 #ifndef RTE_ARCH_64
@@ -448,9 +445,7 @@ map_all_hugepages(struct hugepage_file *hugepg_tbl, struct hugepage_info *hpi,
 			continue;
 		}
 #endif
-
-#ifndef RTE_EAL_SINGLE_FILE_SEGMENTS
-		else if (vma_len == 0) {
+		else if (!internal_config.hugepage_single_segments && vma_len == 0) {
 			unsigned j, num_pages;
 
 			/* reserve a virtual area for next contiguous
@@ -479,7 +474,6 @@ map_all_hugepages(struct hugepage_file *hugepg_tbl, struct hugepage_info *hpi,
 			if (vma_addr == NULL)
 				vma_len = hugepage_sz;
 		}
-#endif
 
 		/* try to create hugepage file */
 		fd = open(hugepg_tbl[i].filepath, O_CREAT | O_RDWR, 0600);
@@ -566,12 +560,10 @@ out:
 	return i;
 }
 
-#ifdef RTE_EAL_SINGLE_FILE_SEGMENTS
-
 /*
  * Remaps all hugepages into single file segments
  */
-static int
+static unsigned
 remap_all_hugepages(struct hugepage_file *hugepg_tbl, struct hugepage_info *hpi)
 {
 	int fd;
@@ -645,7 +637,7 @@ remap_all_hugepages(struct hugepage_file *hugepg_tbl, struct hugepage_info *hpi)
 		fd = open(filepath, O_CREAT | O_RDWR, 0600);
 		if (fd < 0) {
 			RTE_LOG(ERR, EAL, "%s(): open failed: %s\n", __func__, strerror(errno));
-			return -1;
+			return 0;
 		}
 
 		total_size = 0;
@@ -671,7 +663,7 @@ remap_all_hugepages(struct hugepage_file *hugepg_tbl, struct hugepage_info *hpi)
 			if (vma_addr == MAP_FAILED || vma_addr != old_addr) {
 				RTE_LOG(ERR, EAL, "%s(): mmap failed: %s\n", __func__, strerror(errno));
 				close(fd);
-				return -1;
+				return 0;
 			}
 		}
 
@@ -680,7 +672,7 @@ remap_all_hugepages(struct hugepage_file *hugepg_tbl, struct hugepage_info *hpi)
 			RTE_LOG(ERR, EAL, "%s(): Locking file failed:%s \n",
 				__func__, strerror(errno));
 			close(fd);
-			return -1;
+			return 0;
 		}
 
 		snprintf(hugepg_tbl[page_idx].filepath, MAX_HUGEPAGE_PATH, "%s",
@@ -689,7 +681,7 @@ remap_all_hugepages(struct hugepage_file *hugepg_tbl, struct hugepage_info *hpi)
 		physaddr = rte_mem_virt2phy(vma_addr);
 
 		if (physaddr == RTE_BAD_PHYS_ADDR)
-			return -1;
+			return 0;
 
 		hugepg_tbl[page_idx].final_va = vma_addr;
 
@@ -716,7 +708,7 @@ remap_all_hugepages(struct hugepage_file *hugepg_tbl, struct hugepage_info *hpi)
 						"at %p (offset 0x%" PRIx64 ": 0x%" PRIx64
 						" (expected 0x%" PRIx64 ")\n",
 						page_addr, offset, physaddr, expected_physaddr);
-				return -1;
+				return 0;
 			}
 		}
 
@@ -727,7 +719,6 @@ remap_all_hugepages(struct hugepage_file *hugepg_tbl, struct hugepage_info *hpi)
 	memset(&hugepg_tbl[page_idx], 0, (hpi->num_pages[0] - page_idx) * sizeof(struct hugepage_file));
 	return page_idx;
 }
-#else/* RTE_EAL_SINGLE_FILE_SEGMENTS=n */
 
 /* Unmap all hugepages from original mapping */
 static int
@@ -742,7 +733,6 @@ unmap_all_hugepages_orig(struct hugepage_file *hugepg_tbl, struct hugepage_info 
         }
         return 0;
 }
-#endif /* RTE_EAL_SINGLE_FILE_SEGMENTS */
 
 /*
  * Parse /proc/self/numa_maps to get the NUMA socket ID for each huge
@@ -943,11 +933,9 @@ unmap_unneeded_hugepages(struct hugepage_file *hugepg_tbl,
 			for (page = 0; page < nrpages; page++) {
 				struct hugepage_file *hp = &hugepg_tbl[page];
 
-#ifdef RTE_EAL_SINGLE_FILE_SEGMENTS
 				/* if this page was already cleared */
 				if (hp->final_va == NULL)
 					continue;
-#endif
 
 				/* find a page that matches the criteria */
 				if ((hp->size == hpi[size].hugepage_sz) &&
@@ -957,11 +945,7 @@ unmap_unneeded_hugepages(struct hugepage_file *hugepg_tbl,
 					if (pages_found == hpi[size].num_pages[socket]) {
 						uint64_t unmap_len;
 
-#ifdef RTE_EAL_SINGLE_FILE_SEGMENTS
 						unmap_len = hp->size * hp->repeated;
-#else
-						unmap_len = hp->size;
-#endif
 
 						/* get start addr and len of the remaining segment */
 						munmap(hp->final_va, (size_t) unmap_len);
@@ -973,9 +957,8 @@ unmap_unneeded_hugepages(struct hugepage_file *hugepg_tbl,
 							return -1;
 						}
 					}
-#ifdef RTE_EAL_SINGLE_FILE_SEGMENTS
 					/* else, check how much do we need to map */
-					else {
+					else if (internal_config.hugepage_single_segments) {
 						int nr_pg_left =
 								hpi[size].num_pages[socket] - pages_found;
 
@@ -1010,12 +993,10 @@ unmap_unneeded_hugepages(struct hugepage_file *hugepg_tbl,
 							pages_found += nr_pg_left;
 							hp->repeated = nr_pg_left;
 						}
-					}
-#else
-					/* else, lock the page and skip */
-					else
+					} else {
+						/* lock the page and skip */
 						pages_found++;
-#endif
+					}
 
 				} /* match page */
 			} /* foreach page */
@@ -1245,9 +1226,7 @@ rte_eal_hugepage_init(void)
 	int i, j, new_memseg;
 	int nr_hugefiles, nr_hugepages = 0;
 	void *addr;
-#ifdef RTE_EAL_SINGLE_FILE_SEGMENTS
-	int new_pages_count[MAX_HUGEPAGE_SIZES];
-#endif
+	unsigned new_pages_count[MAX_HUGEPAGE_SIZES];
 
 	test_phys_addrs_available();
 
@@ -1326,17 +1305,18 @@ rte_eal_hugepage_init(void)
 		pages_new = map_all_hugepages(&tmp_hp[hp_offset], hpi,
 					      memory, 1);
 		if (pages_new < pages_old) {
-#ifdef RTE_EAL_SINGLE_FILE_SEGMENTS
-			RTE_LOG(ERR, EAL,
-				"%d not %d hugepages of size %u MB allocated\n",
-				pages_new, pages_old,
-				(unsigned)(hpi->hugepage_sz / 0x100000));
-			goto fail;
-#else
-			RTE_LOG(DEBUG, EAL,
-				"%d not %d hugepages of size %u MB allocated\n",
-				pages_new, pages_old,
-				(unsigned)(hpi->hugepage_sz / 0x100000));
+			if (internal_config.hugepage_single_segments) {
+				RTE_LOG(ERR, EAL,
+					"%d not %d hugepages of size %u MB allocated\n",
+					pages_new, pages_old,
+					(unsigned)(hpi->hugepage_sz / 0x100000));
+				goto fail;
+			} else {
+				RTE_LOG(DEBUG, EAL,
+					"%d not %d hugepages of size %u MB allocated\n",
+					pages_new, pages_old,
+					(unsigned)(hpi->hugepage_sz / 0x100000));
+			}
 
 			int pages = pages_old - pages_new;
 
@@ -1344,7 +1324,6 @@ rte_eal_hugepage_init(void)
 			hpi->num_pages[0] = pages_new;
 			if (pages_new == 0)
 				continue;
-#endif
 		}
 
 		if (phys_addrs_available) {
@@ -1374,33 +1353,30 @@ rte_eal_hugepage_init(void)
 		qsort(&tmp_hp[hp_offset], hpi->num_pages[0],
 		      sizeof(struct hugepage_file), cmp_physaddr);
 
-#ifdef RTE_EAL_SINGLE_FILE_SEGMENTS
-		/* remap all hugepages into single file segments */
-		new_pages_count[i] = remap_all_hugepages(&tmp_hp[hp_offset], hpi);
-		if (new_pages_count[i] < 0){
-			RTE_LOG(DEBUG, EAL, "Failed to remap %u MB pages\n",
-					(unsigned)(hpi->hugepage_sz / 0x100000));
-			goto fail;
+		if (internal_config.hugepage_single_segments) {
+			/* remap all hugepages into single file segments */
+			new_pages_count[i] = remap_all_hugepages(&tmp_hp[hp_offset], hpi);
+			if (new_pages_count[i] == 0){
+				RTE_LOG(DEBUG, EAL, "Failed to remap %u MB pages\n",
+						(unsigned)(hpi->hugepage_sz / 0x100000));
+				goto fail;
+			}
+		} else {
+			/* remap all hugepages */
+			new_pages_count[i] = map_all_hugepages(&tmp_hp[hp_offset], hpi, NULL, 0);
+			if (new_pages_count[i] != hpi->num_pages[0]) {
+				RTE_LOG(ERR, EAL, "Failed to remap %u MB pages\n",
+						(unsigned)(hpi->hugepage_sz / 0x100000));
+				goto fail;
+			}
+
+			/* unmap original mappings */
+			if (unmap_all_hugepages_orig(&tmp_hp[hp_offset], hpi) < 0)
+				goto fail;
 		}
 
 		/* we have processed a num of hugepages of this size, so inc offset */
 		hp_offset += new_pages_count[i];
-#else
-		/* remap all hugepages */
-		if (map_all_hugepages(&tmp_hp[hp_offset], hpi, NULL, 0) !=
-		    hpi->num_pages[0]) {
-			RTE_LOG(ERR, EAL, "Failed to remap %u MB pages\n",
-					(unsigned)(hpi->hugepage_sz / 0x100000));
-			goto fail;
-		}
-
-		/* unmap original mappings */
-		if (unmap_all_hugepages_orig(&tmp_hp[hp_offset], hpi) < 0)
-			goto fail;
-
-		/* we have processed a num of hugepages of this size, so inc offset */
-		hp_offset += hpi->num_pages[0];
-#endif
 	}
 
 	huge_recover_sigbus();
@@ -1408,15 +1384,16 @@ rte_eal_hugepage_init(void)
 	if (internal_config.memory == 0 && internal_config.force_sockets == 0)
 		internal_config.memory = eal_get_hugepage_mem_size();
 
-#ifdef RTE_EAL_SINGLE_FILE_SEGMENTS
 	nr_hugefiles = 0;
 	for (i = 0; i < (int) internal_config.num_hugepage_sizes; i++) {
 		nr_hugefiles += new_pages_count[i];
 	}
-#else
-	nr_hugefiles = nr_hugepages;
-#endif
 
+	if (!internal_config.hugepage_single_segments && nr_hugefiles != nr_hugepages) {
+		RTE_LOG(ERR, EAL, "Failed to remap hugepages. Expected %u, mapped %u\n",
+				nr_hugepages, nr_hugefiles);
+		goto fail;
+	}
 
 	/* clean out the numbers of pages */
 	for (i = 0; i < (int) internal_config.num_hugepage_sizes; i++)
@@ -1433,12 +1410,8 @@ rte_eal_hugepage_init(void)
 		for (j = 0; j < nb_hpsizes; j++) {
 			if (tmp_hp[i].size ==
 					internal_config.hugepage_info[j].hugepage_sz) {
-#ifdef RTE_EAL_SINGLE_FILE_SEGMENTS
 					internal_config.hugepage_info[j].num_pages[socket] +=
 						tmp_hp[i].repeated;
-#else
-				internal_config.hugepage_info[j].num_pages[socket]++;
-#endif
 			}
 		}
 	}
@@ -1552,11 +1525,7 @@ rte_eal_hugepage_init(void)
 
 			mcfg->memseg[j].iova = hugepage[i].physaddr;
 			mcfg->memseg[j].addr = hugepage[i].final_va;
-#ifdef RTE_EAL_SINGLE_FILE_SEGMENTS
 			mcfg->memseg[j].len = hugepage[i].size * hugepage[i].repeated;
-#else
-			mcfg->memseg[j].len = hugepage[i].size;
-#endif
 			mcfg->memseg[j].socket_id = hugepage[i].socket_id;
 			mcfg->memseg[j].hugepage_sz = hugepage[i].size;
 		}
@@ -1730,11 +1699,7 @@ rte_eal_hugepage_attach(void)
 						hp[i].filepath);
 					goto error;
 				}
-#ifdef RTE_EAL_SINGLE_FILE_SEGMENTS
 				mapping_size = hp[i].size * hp[i].repeated;
-#else
-				mapping_size = hp[i].size;
-#endif
 				addr = mmap(RTE_PTR_ADD(base_addr, offset),
 						mapping_size, PROT_READ | PROT_WRITE,
 						MAP_SHARED, fd, 0);

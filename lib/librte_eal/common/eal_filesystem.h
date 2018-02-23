@@ -97,7 +97,6 @@ eal_get_hugefile_path(char *buffer, size_t buflen, const char *hugedir, int f_id
 	return buffer;
 }
 
-#ifdef RTE_EAL_SINGLE_FILE_SEGMENTS
 static inline const char *
 eal_get_hugefile_temp_path(char *buffer, size_t buflen, const char *hugedir, int f_id)
 {
@@ -106,7 +105,6 @@ eal_get_hugefile_temp_path(char *buffer, size_t buflen, const char *hugedir, int
 	buffer[buflen - 1] = '\0';
 	return buffer;
 }
-#endif
 
 /** define the default filename prefix for the %s values above */
 #define HUGEFILE_PREFIX_DEFAULT "rte"
