@@ -101,7 +101,7 @@ CONFIG_RTE_EAL_IGB_UIO=n
 #
 # Compile the argument parser library
 #
-#CONFIG_RTE_LIBRTE_KVARGS=y
+CONFIG_RTE_LIBRTE_KVARGS=n
 
 #
 # Compile generic ethernet library
@@ -622,7 +622,7 @@ CONFIG_RTE_LIBRTE_OCTEONTX_MEMPOOL=n
 #
 # Compile librte_timer
 #
-#CONFIG_RTE_LIBRTE_TIMER=y
+CONFIG_RTE_LIBRTE_TIMER=n
 #CONFIG_RTE_LIBRTE_TIMER_DEBUG=n
 
 #
@@ -660,7 +660,7 @@ CONFIG_RTE_LIBRTE_JOBSTATS=n
 #
 # Compile the device metrics library
 #
-#CONFIG_RTE_LIBRTE_METRICS=y
+CONFIG_RTE_LIBRTE_METRICS=n
 
 #
 # Compile the bitrate statistics library
@@ -712,7 +712,7 @@ CONFIG_RTE_LIBRTE_GRO=n
 #
 # Compile GSO library
 #
-#CONFIG_RTE_LIBRTE_GSO=y
+CONFIG_RTE_LIBRTE_GSO=n
 
 #
 # Compile librte_meter
@@ -800,7 +800,7 @@ CONFIG_RTE_APP_TEST=n
 #
 # Compile the procinfo application
 #
-#CONFIG_RTE_PROC_INFO=n
+CONFIG_RTE_PROC_INFO=n
 
 #
 # Compile the PMD test application
