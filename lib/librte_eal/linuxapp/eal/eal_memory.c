@@ -1028,6 +1028,111 @@ rte_eal_hugepage_init(void)
 		return 0;
 	}
 
+	/* allocate single hugetlbfs file on the master numa node */
+	if (internal_config.single_file_segments) {
+		struct hugepage_info *hpi = NULL;
+		size_t vma_len;
+		char filepath[PATH_MAX];
+#ifdef RTE_EAL_NUMA_AWARE_HUGEPAGES
+		unsigned node_id = rte_lcore_to_socket_id(rte_get_master_lcore());
+		int oldpolicy;
+		struct bitmask *oldmask = numa_allocate_nodemask();
+		bool have_numa = true;
+
+		if (numa_available() != 0) {
+			RTE_LOG(DEBUG, EAL, "NUMA is not supported.\n");
+			have_numa = false;
+		} else {
+			RTE_LOG(DEBUG, EAL, "Trying to obtain current memory policy.\n");
+			if (get_mempolicy(&oldpolicy, oldmask->maskp,
+					  oldmask->size + 1, 0, 0) < 0) {
+				RTE_LOG(ERR, EAL,
+					"Failed to get current mempolicy: %s. "
+					"Assuming MPOL_DEFAULT.\n", strerror(errno));
+				oldpolicy = MPOL_DEFAULT;
+			}
+
+			RTE_LOG(DEBUG, EAL,
+				"Setting policy MPOL_PREFERRED for socket %d\n",
+				node_id);
+			numa_set_preferred(node_id);
+		}
+#endif
+
+		if (internal_config.memory == 0 && internal_config.force_sockets == 0)
+			internal_config.memory = eal_get_hugepage_mem_size();
+
+		/* choose optimal hugetlbfs for the mapping */
+		for (i = 0; i < (int) internal_config.num_hugepage_sizes; i++) {
+			hpi = &internal_config.hugepage_info[i];
+			if (hpi->hugepage_sz > internal_config.memory ||
+				hpi->num_pages[0] * hpi->hugepage_sz <
+				internal_config.memory)
+				hpi = NULL;
+		}
+
+		if (hpi == NULL) {
+			RTE_LOG(ERR, EAL,
+				"Cannot find a single hugetlbfs with %"PRIu64" MB free mem.\n",
+				internal_config.memory);
+			return -1;
+		}
+
+		eal_get_hugefile_path(filepath,	sizeof(filepath), hpi->hugedir, 0);
+		filepath[sizeof(filepath) - 1] = '\0';
+
+		/* try to create hugepage file */
+		int fd = open(filepath, O_CREAT | O_RDWR, 0600);
+		if (fd < 0) {
+			RTE_LOG(DEBUG, EAL, "%s(): open failed: %s\n", __func__,
+					strerror(errno));
+			return -1;
+		}
+
+		/* length needs to be manually aligned for future munmap */
+		vma_len = RTE_ALIGN_CEIL(internal_config.memory, hpi->hugepage_sz);
+		addr = get_virtual_area(&vma_len, hpi->hugepage_sz);
+		if (addr == NULL) {
+			RTE_LOG(ERR, EAL,
+				"Cannot reserve virtually-contiguous %"PRIu64" MB.\n",
+				internal_config.memory);
+			return -1;
+		}
+
+		addr = mmap(addr, vma_len, PROT_READ | PROT_WRITE,
+				MAP_SHARED | MAP_POPULATE, fd, 0);
+		if (addr == MAP_FAILED) {
+			RTE_LOG(ERR, EAL, "%s: mmap() failed: %s\n", __func__,
+					strerror(errno));
+			return -1;
+		}
+
+#ifdef RTE_EAL_NUMA_AWARE_HUGEPAGES
+		if (have_numa) {
+			RTE_LOG(DEBUG, EAL,
+				"Restoring previous memory policy: %d\n", oldpolicy);
+			if (oldpolicy == MPOL_DEFAULT) {
+				numa_set_localalloc();
+			} else if (set_mempolicy(oldpolicy, oldmask->maskp,
+						 oldmask->size + 1) < 0) {
+				RTE_LOG(ERR, EAL, "Failed to restore mempolicy: %s\n",
+					strerror(errno));
+				numa_set_localalloc();
+			}
+		}
+		numa_free_cpumask(oldmask);
+#endif
+		if (rte_eal_iova_mode() == RTE_IOVA_VA)
+			mcfg->memseg[0].iova = (uintptr_t)addr;
+		else
+			mcfg->memseg[0].iova = rte_mem_virt2phy(addr);
+		mcfg->memseg[0].addr = addr;
+		mcfg->memseg[0].hugepage_sz = hpi->hugepage_sz;
+		mcfg->memseg[0].len = vma_len;
+		mcfg->memseg[0].socket_id = node_id;
+		return 0;
+	}
+
 	/* calculate total number of hugepages available. at this point we haven't
 	 * yet started sorting them so they all are on socket 0 */
 	for (i = 0; i < (int) internal_config.num_hugepage_sizes; i++) {
