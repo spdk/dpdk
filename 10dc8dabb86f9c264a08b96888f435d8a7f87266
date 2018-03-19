@@ -1,0 +1,44 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "0a24d502_4f40838b",
+        "filename": "lib/librte_eal/linuxapp/eal/eal_memory.c",
+        "patchSetId": 4
+      },
+      "lineNbr": 1065,
+      "author": {
+        "id": 1010525
+      },
+      "writtenOn": "2018-03-19T18:02:28Z",
+      "side": 1,
+      "message": "I\u0027m not sure I understand this loop; it looks like the intent is to set hpi to the hugepage_info array element that fits internal_config.memory best, but each iteration of the loop will reset hpi (overwriting any previous best instance), so even if a previous iteration found a reasonable hpi, the next iteration could overwite it with NULL, leading us down the error path below.  It seems like the only way we can currently get hpi !\u003d NULL on exit from this loop is if the last element in hugepage_info is a good fit.",
+      "revId": "10dc8dabb86f9c264a08b96888f435d8a7f87266",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "bfa8cfc4_609ddf52",
+        "filename": "lib/librte_eal/linuxapp/eal/eal_memory.c",
+        "patchSetId": 4
+      },
+      "lineNbr": 1081,
+      "author": {
+        "id": 1010525
+      },
+      "writtenOn": "2018-03-19T18:02:28Z",
+      "side": 1,
+      "message": "Whitespace nitpick: random embedded tab.",
+      "range": {
+        "startLine": 1081,
+        "startChar": 33,
+        "endLine": 1081,
+        "endChar": 34
+      },
+      "revId": "10dc8dabb86f9c264a08b96888f435d8a7f87266",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    }
+  ]
+}
