@@ -19,6 +19,24 @@
     },
     {
       "key": {
+        "uuid": "49a005f0_93cb11a1",
+        "filename": "lib/librte_eal/linuxapp/eal/eal_memory.c",
+        "patchSetId": 4
+      },
+      "lineNbr": 1065,
+      "author": {
+        "id": 1011218
+      },
+      "writtenOn": "2018-03-19T18:22:38Z",
+      "side": 1,
+      "message": "Ack, I think I missed a break somewhere.",
+      "parentUuid": "0a24d502_4f40838b",
+      "revId": "10dc8dabb86f9c264a08b96888f435d8a7f87266",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "bfa8cfc4_609ddf52",
         "filename": "lib/librte_eal/linuxapp/eal/eal_memory.c",
         "patchSetId": 4
@@ -30,6 +48,30 @@
       "writtenOn": "2018-03-19T18:02:28Z",
       "side": 1,
       "message": "Whitespace nitpick: random embedded tab.",
+      "range": {
+        "startLine": 1081,
+        "startChar": 33,
+        "endLine": 1081,
+        "endChar": 34
+      },
+      "revId": "10dc8dabb86f9c264a08b96888f435d8a7f87266",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "daf97e42_3dc218a2",
+        "filename": "lib/librte_eal/linuxapp/eal/eal_memory.c",
+        "patchSetId": 4
+      },
+      "lineNbr": 1081,
+      "author": {
+        "id": 1011218
+      },
+      "writtenOn": "2018-03-19T18:22:38Z",
+      "side": 1,
+      "message": "Ack",
+      "parentUuid": "bfa8cfc4_609ddf52",
       "range": {
         "startLine": 1081,
         "startChar": 33,
