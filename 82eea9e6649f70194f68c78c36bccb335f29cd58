@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "bc9d3f69_bbc89d5d",
+        "filename": "config/common_spdk",
+        "patchSetId": 1
+      },
+      "lineNbr": 487,
+      "author": {
+        "id": 1010525
+      },
+      "writtenOn": "2018-03-22T20:59:42Z",
+      "side": 1,
+      "message": "This probably needs to be uncommented.",
+      "revId": "82eea9e6649f70194f68c78c36bccb335f29cd58",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    }
+  ]
+}
