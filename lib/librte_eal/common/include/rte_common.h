@@ -453,4 +453,12 @@ rte_exit(int exit_code, const char *format, ...)
 }
 #endif
 
+#ifndef RHEL_RELEASE_VERSION
+#define RHEL_RELEASE_VERSION(a,b) (((a) << 8) + (b))
+#endif
+
+#ifndef RHEL_RELEASE_CODE
+#define RHEL_RELEASE_CODE (0)
+#endif
+
 #endif
