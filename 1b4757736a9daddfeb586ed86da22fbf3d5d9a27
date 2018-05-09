@@ -33,6 +33,24 @@
       "revId": "1b4757736a9daddfeb586ed86da22fbf3d5d9a27",
       "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
       "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "0c2bb134_705e63bf",
+        "filename": "lib/librte_compat/rte_compat.h",
+        "patchSetId": 1
+      },
+      "lineNbr": 89,
+      "author": {
+        "id": 1010525
+      },
+      "writtenOn": "2018-05-09T18:08:59Z",
+      "side": 1,
+      "message": "Never mind, I see that this is for the outer ALLOW_EXPERIMENTAL_API ifdef, so it\u0027s OK.  However, it might be simpler to just modify the attribute above so this one doesn\u0027t need to be duplicated.",
+      "parentUuid": "63b0b498_bdba5a4e",
+      "revId": "1b4757736a9daddfeb586ed86da22fbf3d5d9a27",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
     }
   ]
 }
