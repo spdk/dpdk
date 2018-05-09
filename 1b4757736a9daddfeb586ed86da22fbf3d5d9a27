@@ -1,0 +1,38 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "bda225e5_52c00a34",
+        "filename": "lib/librte_compat/rte_compat.h",
+        "patchSetId": 1
+      },
+      "lineNbr": 81,
+      "author": {
+        "id": 1010525
+      },
+      "writtenOn": "2018-05-09T16:32:41Z",
+      "side": 1,
+      "message": "This seems like it is probably really trying to check support for the message field of the \u0027deprecated\u0027 GCC attribute, not really related to RHEL.  Can we use a __GNUC__ check instead?\n\nAlternatively, we could just patch out the message and use __attribute__((deprecated)) alone - this looks like it has been supported since at least GCC 3.x, which should be plenty old.",
+      "revId": "1b4757736a9daddfeb586ed86da22fbf3d5d9a27",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "63b0b498_bdba5a4e",
+        "filename": "lib/librte_compat/rte_compat.h",
+        "patchSetId": 1
+      },
+      "lineNbr": 89,
+      "author": {
+        "id": 1010525
+      },
+      "writtenOn": "2018-05-09T16:32:41Z",
+      "side": 1,
+      "message": "I think something went wrong with the patch - this now has two #else blocks.",
+      "revId": "1b4757736a9daddfeb586ed86da22fbf3d5d9a27",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    }
+  ]
+}
