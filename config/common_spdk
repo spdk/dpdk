@@ -1,6 +1,9 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright(c) 2010-2017 Intel Corporation
 
+# disable strict aliasing (build fails with it enabled in gcc 4.4)
+EXTRA_CFLAGS += -fno-strict-aliasing
+
 #
 # define executive environment
 # RTE_EXEC_ENV values are the directories in mk/exec-env/
