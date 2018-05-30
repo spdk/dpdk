@@ -1,0 +1,44 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "dbaeedbe_db1e05a0",
+        "filename": "examples/vhost_test_poc/virtual_vhost.c",
+        "patchSetId": 2
+      },
+      "lineNbr": 225,
+      "author": {
+        "id": 1011218
+      },
+      "writtenOn": "2018-05-30T14:07:40Z",
+      "side": 1,
+      "message": "you might want to set msg-\u003eflags here (or somewhere else, but they should be cleared nevertheless)",
+      "revId": "f4188913056d98d02030f9e4da59bf7c9089536d",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "0e6d52a8_2f65776d",
+        "filename": "examples/vhost_test_poc/virtual_vhost.c",
+        "patchSetId": 2
+      },
+      "lineNbr": 227,
+      "author": {
+        "id": 1011218
+      },
+      "writtenOn": "2018-05-30T14:07:40Z",
+      "side": 1,
+      "message": "sending an fd with each message isn\u0027t a fatal error, but the vhost-user spec says it\u0027s sent only for those messages:\n\n```\n * VHOST_USER_SET_MEM_TABLE\n * VHOST_USER_SET_LOG_BASE (if VHOST_USER_PROTOCOL_F_LOG_SHMFD)\n * VHOST_USER_SET_LOG_FD\n * VHOST_USER_SET_VRING_KICK\n * VHOST_USER_SET_VRING_CALL\n * VHOST_USER_SET_VRING_ERR\n * VHOST_USER_SET_SLAVE_REQ_FD\n```\n\nplease comply to the spec.",
+      "range": {
+        "startLine": 227,
+        "startChar": 35,
+        "endLine": 227,
+        "endChar": 48
+      },
+      "revId": "f4188913056d98d02030f9e4da59bf7c9089536d",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": true
+    }
+  ]
+}
