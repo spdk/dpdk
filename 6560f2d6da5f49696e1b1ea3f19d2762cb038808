@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "b700f04f_0ac6a6fb",
+        "filename": "/COMMIT_MSG",
+        "patchSetId": 1
+      },
+      "lineNbr": 9,
+      "author": {
+        "id": 1010525
+      },
+      "writtenOn": "2018-05-31T23:17:18Z",
+      "side": 1,
+      "message": "This \"18.02\" is outdated.  We can probably just remove the version number from the commit message (it\u0027s clear from the branch).",
+      "range": {
+        "startLine": 9,
+        "startChar": 34,
+        "endLine": 9,
+        "endChar": 39
+      },
+      "revId": "6560f2d6da5f49696e1b1ea3f19d2762cb038808",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    }
+  ]
+}
