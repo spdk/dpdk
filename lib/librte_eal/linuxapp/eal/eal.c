@@ -776,7 +776,7 @@ rte_eal_init(int argc, char **argv)
 	int i, fctret, ret;
 	pthread_t thread_id;
 	static rte_atomic32_t run_once = RTE_ATOMIC32_INIT(0);
-	const char *logid;
+	char *logid;
 	char cpuset[RTE_CPU_AFFINITY_STR_LEN];
 	char thread_name[RTE_MAX_THREAD_NAME_LEN];
 
@@ -795,6 +795,12 @@ rte_eal_init(int argc, char **argv)
 
 	logid = strrchr(argv[0], '/');
 	logid = strdup(logid ? logid + 1: argv[0]);
+	if (!logid) {
+		rte_eal_init_alert("Cannot allocate memory for logid\n");
+		rte_errno = ENOMEM;
+		rte_atomic32_clear(&run_once);
+		return -1;
+	}
 
 	thread_id = pthread_self();
 
@@ -806,6 +812,7 @@ rte_eal_init(int argc, char **argv)
 	if (rte_eal_cpu_init() < 0) {
 		rte_eal_init_alert("Cannot detect lcores.");
 		rte_errno = ENOTSUP;
+		free(logid);
 		return -1;
 	}
 
@@ -814,6 +821,7 @@ rte_eal_init(int argc, char **argv)
 		rte_eal_init_alert("Invalid 'command line' arguments.");
 		rte_errno = EINVAL;
 		rte_atomic32_clear(&run_once);
+		free(logid);
 		return -1;
 	}
 
@@ -821,6 +829,7 @@ rte_eal_init(int argc, char **argv)
 	if (eal_create_runtime_dir() < 0) {
 		rte_eal_init_alert("Cannot create runtime directory\n");
 		rte_errno = EACCES;
+		free(logid);
 		return -1;
 	}
 
@@ -828,12 +837,14 @@ rte_eal_init(int argc, char **argv)
 		rte_eal_init_alert("Cannot init plugins\n");
 		rte_errno = EINVAL;
 		rte_atomic32_clear(&run_once);
+		free(logid);
 		return -1;
 	}
 
 	if (eal_option_device_parse()) {
 		rte_errno = ENODEV;
 		rte_atomic32_clear(&run_once);
+		free(logid);
 		return -1;
 	}
 
@@ -846,6 +857,7 @@ rte_eal_init(int argc, char **argv)
 		rte_eal_init_alert("failed to init mp channel\n");
 		if (rte_eal_process_type() == RTE_PROC_PRIMARY) {
 			rte_errno = EFAULT;
+			free(logid);
 			return -1;
 		}
 	}
@@ -854,6 +866,7 @@ rte_eal_init(int argc, char **argv)
 		rte_eal_init_alert("Cannot scan the buses for devices\n");
 		rte_errno = ENODEV;
 		rte_atomic32_clear(&run_once);
+		free(logid);
 		return -1;
 	}
 
@@ -878,6 +891,7 @@ rte_eal_init(int argc, char **argv)
 			rte_eal_init_alert("Cannot get hugepage information.");
 			rte_errno = EACCES;
 			rte_atomic32_clear(&run_once);
+			free(logid);
 			return -1;
 		}
 	}
@@ -904,8 +918,10 @@ rte_eal_init(int argc, char **argv)
 		rte_eal_init_alert("Cannot init logging.");
 		rte_errno = ENOMEM;
 		rte_atomic32_clear(&run_once);
+		free(logid);
 		return -1;
 	}
+	free(logid);
 
 #ifdef VFIO_PRESENT
 	if (rte_eal_vfio_setup() < 0) {
