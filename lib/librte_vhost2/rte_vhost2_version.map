@@ -1,0 +1,12 @@
+DPDK_18.08 {
+	global:
+
+	rte_vhost2_tgt_register;
+	rte_vhost2_tgt_unregister;
+	rte_vhost2_iova_to_vva;
+	rte_vhost2_dev_op_complete;
+	rte_vhost2_dev_call;
+	rte_vhost2_dev_cfg_call;
+
+	local: *;
+};
