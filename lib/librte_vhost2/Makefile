@@ -20,7 +20,7 @@ endif
 LDLIBS += -lrte_eal -lrte_mempool
 
 # all source are stored in SRCS-y
-SRCS-$(CONFIG_RTE_LIBRTE_VHOST) := transport.c
+SRCS-$(CONFIG_RTE_LIBRTE_VHOST) := transport.c vhost.c
 
 # install includes
 SYMLINK-$(CONFIG_RTE_LIBRTE_VHOST)-include += rte_vhost2.h
