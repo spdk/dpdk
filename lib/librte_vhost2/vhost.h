@@ -10,8 +10,20 @@
 
 #include "rte_vhost2.h"
 
+#ifndef VHOST_USER_PROTOCOL_F_MQ
+#define VHOST_USER_PROTOCOL_F_MQ	0
+#endif
+
+#ifndef VHOST_USER_PROTOCOL_F_REPLY_ACK
+#define VHOST_USER_PROTOCOL_F_REPLY_ACK	3
+#endif
+
 #ifndef VIRTIO_F_ANY_LAYOUT
 #define VIRTIO_F_ANY_LAYOUT 27
+#endif
+
+#ifndef VHOST_USER_F_PROTOCOL_FEATURES
+#define VHOST_USER_F_PROTOCOL_FEATURES	30
 #endif
 
 #ifndef VIRTIO_F_VERSION_1
@@ -162,6 +174,9 @@ struct vhost_dev {
 
 	/* negotiated features */
 	uint64_t features;
+
+	/* negotiated protocol features */
+	uint64_t protocol_features;
 	struct vhost_vq *vq[VHOST_MAX_VIRTQUEUES];
 
 	/* currently handled msg */
