@@ -10,6 +10,10 @@
 
 #include "rte_vhost2.h"
 
+#ifndef VHOST_USER_PROTOCOL_F_REPLY_ACK
+#define VHOST_USER_PROTOCOL_F_REPLY_ACK	3
+#endif
+
 #ifndef VIRTIO_F_ANY_LAYOUT
  #define VIRTIO_F_ANY_LAYOUT		27
 #endif
@@ -42,6 +46,10 @@ struct vhost_msg {
 		__u8 padding[64];
 	};
 };
+#endif
+
+#ifndef VHOST_USER_F_PROTOCOL_FEATURES
+#define VHOST_USER_F_PROTOCOL_FEATURES	30
 #endif
 
 #ifndef VIRTIO_F_VERSION_1
@@ -161,6 +169,9 @@ struct vhost_dev {
 
 	/* negotiated features */
 	uint64_t features;
+
+	/* negotiated protocol features */
+	uint64_t protocol_features;
 	struct vhost_vq *vq[VHOST_MAX_VIRTQUEUES];
 
 	vhost_dev_ops_cb op_cpl_fn;

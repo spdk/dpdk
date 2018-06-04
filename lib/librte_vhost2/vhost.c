@@ -56,6 +56,8 @@ static const char *vhost_message_str[VHOST_USER_MAX] = {
 	[VHOST_USER_IOTLB_MSG]  = "VHOST_USER_IOTLB_MSG",
 };
 
+#define VHOST_USER_PROTOCOL_FEATURES	((1ULL << VHOST_USER_PROTOCOL_F_REPLY_ACK))
+
 static void _process_vhost_msg(struct vhost_dev *vdev);
 
 int
@@ -226,6 +228,8 @@ _alloc_stop_vq(struct vhost_dev *vdev, uint16_t vq_idx)
 		return -1;
 	}
 
+	vq->q.state = VHOST_VQ_DEFAULT_STATE;
+
 	vdev->vq[vq_idx] = vq;
 	_process_vhost_msg(vdev);
 	return 0;
@@ -391,6 +395,7 @@ vhost_dev_msg_handler(struct vhost_dev *vdev, struct VhostUserMsg *msg)
 	case VHOST_USER_SET_VRING_ADDR:
 		return _alloc_stop_vq(vdev, msg->payload.addr.index);
 	case VHOST_USER_SET_MEM_TABLE:
+	case VHOST_USER_SET_PROTOCOL_FEATURES:
 		_stop_all_vqs(vdev);
 		return 0;
 	default:
@@ -504,11 +509,14 @@ _process_msg(struct vhost_dev *vdev)
 			"vring kick idx:%d file:%d\n", file.index, file.fd);
 
 		vq = vdev->vq[file.index];
-
 		if (vq->kickfd >= 0)
 			close(vq->kickfd);
 
 		vq->kickfd = file.fd;
+
+		if ((vdev->features & (1ULL << VHOST_USER_F_PROTOCOL_FEATURES)) == 0)
+			vq->q.state = VHOST_VQ_ENABLED;
+
 		return 0;
 
 	case VHOST_USER_SET_VRING_CALL:
@@ -534,10 +542,46 @@ _process_msg(struct vhost_dev *vdev)
 		RTE_LOG(INFO, VHOST_CONFIG, "not implemented\n");
 		return 0;
 
+	case VHOST_USER_GET_PROTOCOL_FEATURES:
+		msg->payload.u64 = VHOST_USER_PROTOCOL_FEATURES;
+
+		/*
+		 * REPLY_ACK protocol feature is only mandatory for now
+		 * for IOMMU feature. If IOMMU is explicitly disabled by the
+		 * application, disable also REPLY_ACK feature for older buggy
+		 * Qemu versions (from v2.7.0 to v2.9.0).
+		 */
+		if (!(vdev->protocol_features & (1ULL << VIRTIO_F_IOMMU_PLATFORM)))
+			msg->payload.u64 &= ~(1ULL << VHOST_USER_PROTOCOL_F_REPLY_ACK);
+
+		return send_vhost_reply(vdev, msg);
+
+	case VHOST_USER_SET_PROTOCOL_FEATURES:
+		vdev->protocol_features = msg->payload.u64;
+		if (msg->payload.u64 & ~VHOST_USER_PROTOCOL_FEATURES) {
+			RTE_LOG(ERR, VHOST_CONFIG,
+				"received invalid negotiated protocol features.\n");
+			return -1;
+		}
+		return 0;
+
 	case VHOST_USER_GET_QUEUE_NUM:
 		msg->payload.u64 = (uint64_t)VHOST_MAX_VIRTQUEUES;
 		msg->size = sizeof(msg->payload.u64);
 		return send_vhost_reply(vdev, msg);
+
+	case VHOST_USER_SET_VRING_ENABLE:
+		if ((vdev->features & VHOST_USER_F_PROTOCOL_FEATURES) == 0) {
+			/* the driver is buggy, it should not send this msg */
+			return -1;
+		}
+		vq = vdev->vq[msg->payload.state.index];
+		if (msg->payload.state.num & 1)
+			vq->q.state = VHOST_VQ_ENABLED;
+		else
+			vq->q.state = VHOST_VQ_DISABLED;
+
+		return 0;
 
 	default:
 		//todo
@@ -564,7 +608,8 @@ _process_vhost_msg(struct vhost_dev *vdev)
 		return;
 	}
 
-	if (msg->flags & VHOST_USER_NEED_REPLY) {
+	if ((vdev->protocol_features & (1ULL << VHOST_USER_PROTOCOL_F_REPLY_ACK)) &&
+			msg->flags & VHOST_USER_NEED_REPLY) {
 		msg->payload.u64 = !!ret;
 		msg->size = sizeof(msg->payload.u64);
 		ret = send_vhost_reply(vdev, msg);
