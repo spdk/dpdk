@@ -58,6 +58,9 @@ struct vhost_user_socket {
 
 	uint64_t flags;
 
+	void (*del_cb_fn)(void *arg);
+	void *del_cb_ctx;
+
 	TAILQ_ENTRY(vhost_user_socket) tailq;
 };
 
@@ -71,6 +74,8 @@ struct vhost_user_connection {
 	struct VhostUserMsg msg;
 	rte_atomic32_t op_rc;
 
+	bool removed;
+
 	TAILQ_ENTRY(vhost_user_connection) tailq;
 };
 
@@ -80,6 +85,7 @@ struct vhost_user {
 };
 
 static void vhost_user_server_new_connection(int fd, void *ctx);
+static void vhost_user_destroy_connection(struct vhost_user_connection *conn);
 static int create_unix_socket(struct vhost_user_socket *vsocket);
 static struct vhost_transport_ops vhost_user_transport;
 static struct vhost_dev_ops vhost_dev_user_ops;
@@ -223,6 +229,22 @@ read_vhost_message(struct vhost_user_connection *conn)
 }
 
 static void
+_vhost_user_free_vsocket(struct vhost_user_socket *vsocket)
+{
+	void (*del_cb_fn)(void *arg);
+	void *del_cb_ctx;
+
+	del_cb_fn = vsocket->del_cb_fn;
+	del_cb_ctx = vsocket->del_cb_ctx;
+
+	close(vsocket->socket_fd);
+	free(vsocket->path);
+	free(vsocket);
+
+	del_cb_fn(del_cb_ctx);
+}
+
+static void
 _vhost_user_free_connection(void *arg)
 {
 	struct vhost_user_connection *conn = arg;
@@ -236,6 +258,10 @@ _vhost_user_free_connection(void *arg)
 		conn->mem = NULL;
 	}
 	free(conn);
+
+	if (TAILQ_EMPTY(&vsocket->conn_list)) {
+		_vhost_user_free_vsocket(vsocket);
+	}
 }
 
 static void
@@ -252,6 +278,12 @@ static void
 vhost_user_destroy_connection(struct vhost_user_connection *conn)
 {
 	int rc;
+
+	if (conn->removed) {
+		/* async removal in progress */
+		return;
+	}
+	conn->removed = true;
 
 	rc = fdset_del(&vhost_user.fdset, conn->fd, _vhost_user_connfd_del_cb);
 	if (rc)
@@ -439,6 +471,48 @@ vhost_user_tgt_register(const char *path, uint64_t flags, void *ctx __rte_unused
 		free(vsocket->path);
 		free(vsocket);
 	}
+
+	return rc;
+}
+
+static void
+_vhost_user_vsocketfd_del_cb(int fd __rte_unused, void *ctx)
+{
+	struct vhost_user_socket *vsocket = ctx;
+	struct vhost_user_connection *conn;
+
+	if (TAILQ_EMPTY(&vsocket->conn_list)) {
+		_vhost_user_free_vsocket(vsocket);
+		return;
+	}
+
+	/* the last destroyed connection will call `vsocket->del_cb_fn` */
+	TAILQ_FOREACH(conn, &vsocket->conn_list, tailq)
+		vhost_user_destroy_connection(conn);
+}
+
+static int
+vhost_user_tgt_unregister(const char *path,
+			  void (*cb_fn)(void *arg), void *cb_ctx)
+{
+	struct vhost_user_socket *vsocket;
+	int rc;
+
+	TAILQ_FOREACH(vsocket, &vhost_user.vsockets, tailq) {
+		if (strcmp(path, vsocket->path) == 0)
+			break;
+	}
+
+	if (vsocket == NULL)
+		return -ENODEV;
+
+	vsocket->del_cb_fn = cb_fn;
+	vsocket->del_cb_ctx = cb_ctx;
+
+	rc = fdset_del(&vhost_user.fdset, vsocket->socket_fd,
+			_vhost_user_vsocketfd_del_cb);
+	if (rc)
+		assert(false);
 
 	return rc;
 }
@@ -707,6 +781,7 @@ static struct vhost_dev_ops vhost_dev_user_ops = {
 static struct vhost_transport_ops vhost_user_transport = {
 	.type = "vhost-user",
 	.tgt_register = vhost_user_tgt_register,
+	.tgt_unregister = vhost_user_tgt_unregister,
 	.dev_op_cpl = vhost_user_dev_op_complete,
 	.dev_call = vhost_user_dev_call,
 };
