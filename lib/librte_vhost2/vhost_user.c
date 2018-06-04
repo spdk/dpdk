@@ -22,6 +22,7 @@
 
 #include <rte_log.h>
 #include <rte_malloc.h>
+#include <rte_atomic.h>
 
 #include "rte_vhost2.h"
 #include "transport.h"
@@ -52,7 +53,6 @@ struct vhost_user_socket {
 	const struct rte_vhost2_tgt_ops *ops;
 
 	TAILQ_HEAD(, vhost_user_connection) conn_list;
-	pthread_mutex_t conn_mutex;
 
 	struct sockaddr_un un;
 
@@ -73,6 +73,9 @@ struct vhost_user_connection {
 	int fd;
 	struct VhostUserMsg msg;
 	unsigned queued_msgs;
+	rte_atomic32_t op_rc;
+
+	bool removed;
 
 	TAILQ_ENTRY(vhost_user_connection) tailq;
 };
@@ -83,6 +86,7 @@ struct vhost_user {
 };
 
 static void vhost_user_server_new_connection(int fd, void *ctx);
+static void vhost_user_destroy_connection(struct vhost_user_connection *conn);
 static int create_unix_socket(struct vhost_user_socket *vsocket);
 static struct vhost_transport_ops vhost_user_transport;
 static struct vhost_dev_transport_ops vhost_dev_user_ops;
@@ -226,19 +230,34 @@ read_vhost_message(struct vhost_user_connection *conn)
 }
 
 static void
+_vhost_user_free_vsocket(struct vhost_user_socket *vsocket)
+{
+	void (*del_cb_fn)(void *arg);
+	void *del_cb_ctx;
+
+	del_cb_fn = vsocket->del_cb_fn;
+	del_cb_ctx = vsocket->del_cb_ctx;
+
+	close(vsocket->socket_fd);
+	free(vsocket->path);
+	free(vsocket);
+
+	del_cb_fn(del_cb_ctx);
+}
+
+static void
 _vhost_user_free_connection(struct vhost_dev *vdev, int rc, void *ctx __rte_unused)
 {
 	struct vhost_user_connection *conn = container_of(vdev,
 			struct vhost_user_connection, vdev);
 	struct vhost_user_socket *vsocket = conn->vsocket;
 
+
 	if (rc) {
 		return;
 	}
 
-	pthread_mutex_lock(&vsocket->conn_mutex);
 	TAILQ_REMOVE(&vsocket->conn_list, conn, tailq);
-	pthread_mutex_unlock(&vsocket->conn_mutex);
 
 	close(conn->fd);
 	if (conn->mem) {
@@ -246,14 +265,26 @@ _vhost_user_free_connection(struct vhost_dev *vdev, int rc, void *ctx __rte_unus
 		conn->mem = NULL;
 	}
 	free(conn);
+
+	if (TAILQ_EMPTY(&vsocket->conn_list)) {
+		_vhost_user_free_vsocket(vsocket);
+	}
 }
 
 static void
-_vhost_user_fdset_del_cb(int fd __rte_unused, void *ctx)
+_vhost_user_connfd_del_cb(int fd __rte_unused, void *ctx)
 {
 	struct vhost_user_connection *conn = ctx;
 
 	_vhost_user_free_connection(&conn->vdev, 0, NULL);
+}
+
+static void
+_vhost_user_connfd_del_retry_cb(int fd __rte_unused, void *ctx)
+{
+	struct vhost_user_connection *conn = ctx;
+
+	vhost_user_destroy_connection(conn);
 }
 
 static void
@@ -263,17 +294,29 @@ _vhost_user_post_device_destroy(struct vhost_dev *vdev, int rc, void *ctx __rte_
 			struct vhost_user_connection, vdev);
 
 	if (rc) {
+		/* User failed the device destruction, so try again and again
+		 * until he regains sanity.
+		 */
+		conn->removed = false;
+		fdset_notify(&vhost_user.fdset, _vhost_user_connfd_del_retry_cb, conn);
 		return;
 	}
 
-	rc = fdset_del(&vhost_user.fdset, conn->fd, _vhost_user_fdset_del_cb);
-	(void)rc; //TODO
+	rc = fdset_del(&vhost_user.fdset, conn->fd, _vhost_user_connfd_del_cb);
+	if (rc)
+		assert(false);
 }
 
 static void
-_vhost_user_destroy_connection(struct vhost_user_connection *conn)
+vhost_user_destroy_connection(struct vhost_user_connection *conn)
 {
 	struct vhost_user_socket *vsocket = conn->vsocket;
+
+	if (conn->removed) {
+		/* async removal in progress */
+		return;
+	}
+	conn->removed = true;
 
 	if (vsocket->ops->device_destroy) {
 		vhost_dev_set_ops_cb(&conn->vdev, _vhost_user_post_device_destroy, NULL);
@@ -302,9 +345,7 @@ _vhost_user_new_connection(struct vhost_dev *vdev, int rc, void *ctx __rte_unuse
 		free(conn);
 	}
 
-	pthread_mutex_lock(&conn->vsocket->conn_mutex);
 	TAILQ_INSERT_TAIL(&conn->vsocket->conn_list, conn, tailq);
-	pthread_mutex_unlock(&conn->vsocket->conn_mutex);
 
 	vhost_dev_init(vdev, conn->vsocket->features, &vhost_user_transport,
 		       &vhost_dev_user_ops, conn->vsocket->ops);
@@ -345,6 +386,7 @@ vhost_user_add_connection(int fd, struct vhost_user_socket *vsocket)
 
 	conn->vsocket = vsocket;
 	conn->fd = fd;
+	rte_atomic32_init(&conn->op_rc);
 
 	if (vsocket->ops->device_create) {
 		vhost_dev_set_ops_cb(&conn->vdev, _vhost_user_new_connection, NULL);
@@ -455,17 +497,8 @@ vhost_user_tgt_register(const char *path, uint64_t flags, void *ctx __rte_unused
 		return -ENOMEM;
 	}
 
-	rc = pthread_mutex_init(&vsocket->conn_mutex, NULL);
-	if (rc) {
-		RTE_LOG(ERR, VHOST_CONFIG, "pthread_mutex_init failed\n");
-		free(vsocket->path);
-		free(vsocket);
-		return -rc;
-	}
-
 	rc = create_unix_socket(vsocket);
 	if (rc < 0) {
-		pthread_mutex_destroy(&vsocket->conn_mutex);
 		free(vsocket->path);
 		free(vsocket);
 	}
@@ -479,7 +512,6 @@ vhost_user_tgt_register(const char *path, uint64_t flags, void *ctx __rte_unused
 
 	rc = vhost_user_start_server(vsocket);
 	if (rc) {
-		pthread_mutex_destroy(&vsocket->conn_mutex);
 		free(vsocket->path);
 		free(vsocket);
 	}
@@ -488,12 +520,66 @@ vhost_user_tgt_register(const char *path, uint64_t flags, void *ctx __rte_unused
 }
 
 static void
+_vhost_user_vsocketfd_del_cb(int fd __rte_unused, void *ctx)
+{
+	struct vhost_user_socket *vsocket = ctx;
+	struct vhost_user_connection *conn;
+
+	if (TAILQ_EMPTY(&vsocket->conn_list)) {
+		_vhost_user_free_vsocket(vsocket);
+		return;
+	}
+
+	/* the last destroyed connection will call `vsocket->del_cb_fn` */
+	TAILQ_FOREACH(conn, &vsocket->conn_list, tailq) {
+		vhost_user_destroy_connection(conn);
+	}
+}
+
+static int
+vhost_user_tgt_unregister(const char *path,
+			  void (*cb_fn)(void *arg), void *cb_ctx)
+{
+	struct vhost_user_socket *vsocket;
+	int rc;
+
+	TAILQ_FOREACH(vsocket, &vhost_user.vsockets, tailq) {
+		if (strcmp(path, vsocket->path) == 0)
+			break;
+	}
+
+	if (vsocket == NULL)
+		return -ENODEV;
+
+	vsocket->del_cb_fn = cb_fn;
+	vsocket->del_cb_ctx = cb_ctx;
+
+	rc = fdset_del(&vhost_user.fdset, vsocket->socket_fd,
+			_vhost_user_vsocketfd_del_cb);
+	if (rc)
+		assert(false);
+
+	return rc;
+}
+
+static void
+_vhost_user_dev_op_complete(int fd __rte_unused, void *ctx)
+{
+	struct vhost_user_connection *conn = ctx;
+
+	vhost_dev_ops_complete(&conn->vdev, rte_atomic32_read(&conn->op_rc));
+}
+
+static void
 vhost_user_dev_op_complete(struct rte_vhost2_dev *_vdev, int rc)
 {
 	struct vhost_dev *vdev = container_of(_vdev,
 			struct vhost_dev, dev);
+	struct vhost_user_connection *conn = container_of(vdev,
+			struct vhost_user_connection, vdev);
 
-	vhost_dev_ops_complete(vdev, rc);
+	rte_atomic32_set(&conn->op_rc, rc);
+	fdset_notify(&vhost_user.fdset, _vhost_user_dev_op_complete, conn);
 }
 
 static void
@@ -695,13 +781,13 @@ vhost_user_msg_cpl(struct vhost_dev *vdev, struct VhostUserMsg *msg __rte_unused
 
 	ret = read_vhost_message(conn);
 	if (ret < 0) {
-		_vhost_user_destroy_connection(conn);
+		vhost_user_destroy_connection(conn);
 		return;
 	}
 
 	ret = vhost_dev_msg_handler(&conn->vdev, &conn->msg);
 	if (ret < 0) {
-		_vhost_user_destroy_connection(conn);
+		vhost_user_destroy_connection(conn);
 		return;
 	}
 }
@@ -723,20 +809,20 @@ vhost_user_read_cb(int connfd __rte_unused, void *ctx)
 	struct vhost_user_connection *conn = ctx;
 	int ret;
 
-	if (conn->queued_msgs++ > 0) {
+	if (conn->queued_msgs++ > 0 || conn->removed) {
 		/* we're currently processing a message asynchronously */
 		return;
 	}
 
 	ret = read_vhost_message(conn);
 	if (ret < 0) {
-		_vhost_user_destroy_connection(conn);
+		vhost_user_destroy_connection(conn);
 		return;
 	}
 
 	ret = vhost_dev_msg_handler(&conn->vdev, &conn->msg);
 	if (ret < 0) {
-		_vhost_user_destroy_connection(conn);
+		vhost_user_destroy_connection(conn);
 		return;
 	}
 }
@@ -750,6 +836,7 @@ static struct vhost_dev_transport_ops vhost_dev_user_ops = {
 static struct vhost_transport_ops vhost_user_transport = {
 	.type = "vhost-user",
 	.tgt_register = vhost_user_tgt_register,
+	.tgt_unregister = vhost_user_tgt_unregister,
 	.dev_op_cpl = vhost_user_dev_op_complete,
 	.dev_call = vhost_user_dev_call,
 };
