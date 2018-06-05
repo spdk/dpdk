@@ -25,6 +25,30 @@
     },
     {
       "key": {
+        "uuid": "dd66aec5_ec2695a0",
+        "filename": "lib/librte_vhost2/fd_man.c",
+        "patchSetId": 2
+      },
+      "lineNbr": 52,
+      "author": {
+        "id": 1011218
+      },
+      "writtenOn": "2018-06-05T17:16:38Z",
+      "side": 1,
+      "message": "True, something looks over-complicated here.",
+      "parentUuid": "75f17d79_a84c041f",
+      "range": {
+        "startLine": 35,
+        "startChar": 0,
+        "endLine": 52,
+        "endChar": 1
+      },
+      "revId": "bc9c394c816851f8fc8d50265175c9bafdf04665",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "d57fc6f9_353987e6",
         "filename": "lib/librte_vhost2/fd_man.c",
         "patchSetId": 2
@@ -140,6 +164,30 @@
     },
     {
       "key": {
+        "uuid": "d7f249bb_ba05082d",
+        "filename": "lib/librte_vhost2/fd_man.c",
+        "patchSetId": 2
+      },
+      "lineNbr": 207,
+      "author": {
+        "id": 1011218
+      },
+      "writtenOn": "2018-06-05T17:16:38Z",
+      "side": 1,
+      "message": "Good idea, I\u0027ll look into it.",
+      "parentUuid": "12eecc95_42fa5c5c",
+      "range": {
+        "startLine": 207,
+        "startChar": 1,
+        "endLine": 207,
+        "endChar": 34
+      },
+      "revId": "bc9c394c816851f8fc8d50265175c9bafdf04665",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "a4c09f3d_a0ac7020",
         "filename": "lib/librte_vhost2/fd_man.h",
         "patchSetId": 2
@@ -151,6 +199,30 @@
       "writtenOn": "2018-06-05T16:31:56Z",
       "side": 1,
       "message": "This is GNU gcc C extension and not portable. Also it will work only when compiling with C translation units. Why this is needed when you have \u0027.num\u0027?",
+      "range": {
+        "startLine": 28,
+        "startChar": 13,
+        "endLine": 28,
+        "endChar": 32
+      },
+      "revId": "bc9c394c816851f8fc8d50265175c9bafdf04665",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "f019d239_89940a21",
+        "filename": "lib/librte_vhost2/fd_man.h",
+        "patchSetId": 2
+      },
+      "lineNbr": 28,
+      "author": {
+        "id": 1011218
+      },
+      "writtenOn": "2018-06-05T17:16:38Z",
+      "side": 1,
+      "message": "Ack, that\u0027s not necessary.",
+      "parentUuid": "a4c09f3d_a0ac7020",
       "range": {
         "startLine": 28,
         "startChar": 13,
@@ -197,6 +269,30 @@
       "writtenOn": "2018-06-05T16:31:56Z",
       "side": 1,
       "message": "Writing to one field of a union to read from other one is technically incorrect and undefined from C spec point of view.\n\nYou can introcude \n\n#define FDSET_READFD(_fdset) ((_fdset)-\u003epipefd[0])\n#define FDSET_WRITEFD(_fdset) ((_fdset)-\u003epipefd[1])\n\nOr simmilar.",
+      "range": {
+        "startLine": 56,
+        "startChar": 0,
+        "endLine": 64,
+        "endChar": 5
+      },
+      "revId": "bc9c394c816851f8fc8d50265175c9bafdf04665",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "668abf90_f0cfb203",
+        "filename": "lib/librte_vhost2/fd_man.h",
+        "patchSetId": 2
+      },
+      "lineNbr": 64,
+      "author": {
+        "id": 1011218
+      },
+      "writtenOn": "2018-06-05T17:16:38Z",
+      "side": 1,
+      "message": "I believe it\u0027s fine as long as the string aliasing rule is followed - and it it since both union fields have the exact same type. Can you check this in the spec?",
+      "parentUuid": "9b48aa6a_9ff87a58",
       "range": {
         "startLine": 56,
         "startChar": 0,
