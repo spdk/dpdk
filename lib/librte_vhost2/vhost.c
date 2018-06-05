@@ -58,6 +58,7 @@ static const char *vhost_message_str[VHOST_USER_MAX] = {
 
 static void _handle_msg(struct vhost_dev *vdev);
 static void _vhost_dev_destroy_continue(struct vhost_dev *vdev);
+static void _msg_handler_stop_vq(struct vhost_dev *vdev, struct vhost_vq *vq);
 static void _msg_handler_stop_all_vqs(struct vhost_dev *vdev);
 static void start_all_vqs(struct vhost_dev *vdev, uint16_t starting_idx);
 
@@ -94,6 +95,7 @@ vhost_dev_set_ops_cb(struct vhost_dev *vdev,
 	vdev->op_pending_cnt++;
 	vdev->op_cpl_fn = cb_fn;
 	vdev->op_cpl_ctx = ctx;
+	vdev->op_failed_flag = false;
 }
 
 void
@@ -104,6 +106,7 @@ vhost_dev_ops_complete(struct vhost_dev *vdev, int rc)
 
 	vdev->op_cpl_fn = NULL;
 	vdev->op_cpl_ctx = NULL;
+	vdev->op_failed_flag = !!rc;
 	if (op_cpl_fn)
 		op_cpl_fn(vdev, rc, op_cpl_ctx);
 
@@ -129,8 +132,10 @@ _msg_handler_stop_all_vqs_cpl(struct vhost_dev *vdev, int rc, void *ctx)
 	struct vhost_vq *vq = ctx;
 
 	if (rc) {
-		/* FIXME */
-		assert(false);
+		if (!vdev->op_completed_inline)
+			_msg_handler_stop_all_vqs(vdev);
+		/* unwind the stack */
+		return;
 	}
 
 	_stop_vq(vq);
@@ -150,13 +155,18 @@ _msg_handler_stop_all_vqs(struct vhost_dev *vdev)
 		if (!vq || !vq->started)
 			continue;
 
-		if (vdev->ops->queue_stop) {
-			vhost_dev_set_ops_cb(vdev, _msg_handler_stop_all_vqs_cpl, vq);
-			vdev->ops->queue_stop(&vdev->dev, &vq->q);
-			return;
+		if (!vdev->ops->queue_stop) {
+			_stop_vq(vq);
+			continue;
 		}
 
-		_stop_vq(vq);
+		do {
+			vdev->op_completed_inline = true;
+			vhost_dev_set_ops_cb(vdev, _msg_handler_stop_all_vqs_cpl, vq);
+			vdev->ops->queue_stop(&vdev->dev, &vq->q);
+			vdev->op_completed_inline = false;
+		} while (vdev->op_failed_flag);
+		return;
 	}
 
 	if (vdev->removed)
@@ -171,8 +181,10 @@ _msg_handler_stop_vq_cpl(struct vhost_dev *vdev, int rc, void *ctx)
 	struct vhost_vq *vq = ctx;
 
 	if (rc) {
-		/* FIXME */
-		assert(false);
+		if (!vdev->op_completed_inline)
+			_msg_handler_stop_vq(vdev, vq);
+		/* unwind the stack */
+		return;
 	}
 
 	_stop_vq(vq);
@@ -182,12 +194,17 @@ _msg_handler_stop_vq_cpl(struct vhost_dev *vdev, int rc, void *ctx)
 static void
 _msg_handler_stop_vq(struct vhost_dev *vdev, struct vhost_vq *vq)
 {
-	if (vdev->ops->queue_stop) {
+	if (!vdev->ops->queue_stop) {
+		_msg_handler_stop_vq_cpl(vdev, 0, vq);
+		return;
+	}
+
+	do {
+		vdev->op_completed_inline = true;
 		vhost_dev_set_ops_cb(vdev, _msg_handler_stop_vq_cpl, vq);
 		vdev->ops->queue_stop(&vdev->dev, &vq->q);
-	} else {
-		_msg_handler_stop_vq_cpl(vdev, 0, vq);
-	}
+		vdev->op_completed_inline = false;
+	} while (vdev->op_failed_flag);
 }
 
 static int
@@ -234,6 +251,7 @@ _start_all_vqs_cpl(struct vhost_dev *vdev, int rc, void *ctx)
 {
 	struct vhost_vq *vq = ctx;
 
+	/* if user failed to start the queue then just continue without it */
 	if (rc == 0)
 		vq->started = true;
 
@@ -260,12 +278,13 @@ start_all_vqs(struct vhost_dev *vdev, uint16_t starting_idx)
 		if (!vq || !vq->kicked || vq->started)
 			continue;
 
-		if (vdev->ops->queue_start) {
-			vhost_dev_set_ops_cb(vdev, _start_all_vqs_cpl, vq);
-			vdev->ops->queue_start(&vdev->dev, &vq->q);
-		} else {
+		if (!vdev->ops->queue_start) {
 			_start_all_vqs_cpl(vdev, 0, vq);
+			continue;
 		}
+
+		vhost_dev_set_ops_cb(vdev, _start_all_vqs_cpl, vq);
+		vdev->ops->queue_start(&vdev->dev, &vq->q);
 		return;
 	}
 }
@@ -274,8 +293,10 @@ static void
 _destroy_device_cpl(struct vhost_dev *vdev, int rc, void *ctx __rte_unused)
 {
 	if (rc) {
-		/* FIXME */
-		assert(false);
+		if (!vdev->op_completed_inline)
+			_vhost_dev_destroy_continue(vdev);
+		/* unwind the stack */
+		return;
 	}
 
 	if (vdev->del_cb_fn)
@@ -286,8 +307,17 @@ _destroy_device_cpl(struct vhost_dev *vdev, int rc, void *ctx __rte_unused)
 static void
 _vhost_dev_destroy_continue(struct vhost_dev *vdev)
 {
-	vhost_dev_set_ops_cb(vdev, _destroy_device_cpl, NULL);
-	vdev->ops->device_destroy(&vdev->dev);
+	if (!vdev->ops->device_destroy) {
+		_destroy_device_cpl(vdev, 0, NULL);
+		return;
+	}
+
+	do {
+		vdev->op_completed_inline = true;
+		vhost_dev_set_ops_cb(vdev, _destroy_device_cpl, NULL);
+		vdev->ops->device_destroy(&vdev->dev);
+		vdev->op_completed_inline = false;
+	} while (vdev->op_failed_flag);
 }
 
 void
