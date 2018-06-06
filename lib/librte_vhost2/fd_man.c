@@ -15,16 +15,98 @@
 
 #define FDPOLLERR (POLLERR | POLLHUP | POLLNVAL)
 
+enum fdset_event_type {
+	EVENT_FD_ADD,
+	EVENT_FD_DEL,
+	EVENT_NOTIFY,
+};
+
 struct fdset_event {
-	fd_cb cb_fn;
-	void *ctx;
+	enum fdset_event_type type;
+	struct {
+		int fd;
+		fd_cb rcb;
+		fd_cb wcb;
+		fd_modify_cb modify_cb;
+		fd_cb notify_cb;
+		void *ctx;
+	} data;
 };
 
 static void *_fdset_event_dispatch(void *arg);
 
-static void
-_fdset_pipe_read_cb(int readfd, void *ctx __rte_unused)
+int
+fdset_init(struct fdset *pfdset)
 {
+	pthread_t tid;
+	int rc;
+
+	pfdset->num = 0;
+
+	rc = rte_ctrl_thread_create(&tid,
+				"vhost-events", NULL, _fdset_event_dispatch,
+				pfdset);
+
+	return rc;
+}
+
+static void
+_fdset_add(struct fdset *pfdset, int fd, fd_cb rcb, fd_cb wcb,
+	   fd_modify_cb cpl_cb, void *ctx)
+{
+
+	struct fdentry *pfdentry;
+	struct pollfd *pfd;
+	int idx;
+
+	if (pfdset->num == MAX_FDS) {
+		cpl_cb(fd, -ENOSPC, ctx);
+		return;
+	}
+
+	idx = pfdset->num++;
+	pfdentry = &pfdset->fds[idx];
+	pfdentry->fd  = fd;
+	pfdentry->rcb = rcb;
+	pfdentry->wcb = wcb;
+	pfdentry->ctx = ctx;
+
+	pfd = &pfdset->rwfds[idx];
+	pfd->fd = fd;
+	pfd->events  = rcb ? POLLIN : 0;
+	pfd->events |= wcb ? POLLOUT : 0;
+	pfd->revents = 0;
+
+	cpl_cb(fd, 0, ctx);
+}
+
+static void
+_fdset_del(struct fdset *pfdset, int fd, fd_modify_cb cpl_cb, void *ctx)
+{
+	int i;
+
+	for (i = 0; i < pfdset->num; i++) {
+		if (pfdset->fds[i].fd != fd)
+			continue;
+
+		if (i != pfdset->num - 1) {
+			pfdset->fds[i] = pfdset->fds[pfdset->num - 1];
+			pfdset->rwfds[i] = pfdset->rwfds[pfdset->num - 1];
+		}
+
+		pfdset->num--;
+		cpl_cb(fd, 0, ctx);
+		break;
+	}
+
+	if (i == pfdset->num)
+		cpl_cb(fd, -ENOENT, ctx);
+}
+
+static void
+_fdset_pipe_read_cb(int readfd, void *ctx)
+{
+	struct fdset *pfdset = ctx;
 	struct fdset_event event;
 	int r;
 
@@ -36,129 +118,147 @@ _fdset_pipe_read_cb(int readfd, void *ctx __rte_unused)
 	}
 
 	if (r != sizeof(event)) {
+		/* FIXME */
 		return;
 	}
 
-	if (event.cb_fn) {
-		event.cb_fn(-1, event.ctx);
+	switch (event.type) {
+	case EVENT_FD_ADD:
+		_fdset_add(pfdset, event.data.fd, event.data.rcb,
+			   event.data.wcb, event.data.modify_cb,
+			   event.data.ctx);
+		break;
+
+	case EVENT_FD_DEL:
+		_fdset_del(pfdset, event.data.fd, event.data.modify_cb,
+			   event.data.ctx);
+		break;
+
+	case EVENT_NOTIFY:
+		event.data.notify_cb(-1, event.data.ctx);
+		break;
 	}
+
 }
 
-
-static void
-_fdset_set_nolock(struct fdset *pfdset, int idx, int fd,
-		fd_cb rcb, fd_cb wcb, void *ctx)
+static void *
+_fdset_event_dispatch(void *arg)
 {
-	struct fdentry *pfdentry;
-	struct pollfd *pfd;
-	int i = idx;
-
-	pfdentry = &pfdset->fds[i];
-	pfdentry->fd  = fd;
-	pfdentry->rcb = rcb;
-	pfdentry->wcb = wcb;
-	pfdentry->removed = false;
-	pfdentry->del_cb = NULL;
-	pfdentry->ctx = ctx;
-
-	pfd = &pfdset->rwfds[i];
-	pfd->fd = fd;
-	pfd->events  = rcb ? POLLIN : 0;
-	pfd->events |= wcb ? POLLOUT : 0;
-	pfd->revents = 0;
-}
-
-static int
-_fdset_start_thread(struct fdset *pfdset)
-{
-	pthread_t tid;
-	int rc;
-
-	if (pipe(pfdset->u.pipefd) < 0) {
-		return -errno;
-	}
-
-	_fdset_set_nolock(pfdset, 0, pfdset->u.readfd,
-		       _fdset_pipe_read_cb, NULL, NULL);
-
-	rc = rte_ctrl_thread_create(&tid,
-				"vhost-events", NULL, _fdset_event_dispatch,
-				pfdset);
-	if (rc) {
-		_fdset_set_nolock(pfdset, 0, -1, NULL, NULL, NULL);
-		close(pfdset->u.readfd);
-		close(pfdset->u.writefd);
-	}
-
-	return rc;
-}
-
-int
-fdset_add(struct fdset *pfdset, int fd, fd_cb rcb, fd_cb wcb, void *ctx)
-{
-	int i, rc = 0;
-
-	pthread_mutex_lock(&pfdset->fd_mutex);
-	if (pfdset->num == MAX_FDS) {
-		pthread_mutex_unlock(&pfdset->fd_mutex);
-		return -ENOSPC;
-	}
-
-	i = pfdset->num++;
-
-	if (i == 0) {
-		/* This is the first and the only fd in the pfdset. */
-		rc = _fdset_start_thread(pfdset);
-		i = pfdset->num++;
-	}
-
-	pthread_mutex_unlock(&pfdset->fd_mutex);
-
-	if (rc) {
-		return rc;
-	}
-
-	_fdset_set_nolock(pfdset, i, fd, rcb, wcb, ctx);
-
-	/* Interrupt any blocking poll. This will result in pollfd array
-	 * being updated immediately. */
-	fdset_notify(pfdset, NULL, NULL);
-	return 0;
-}
-
-int
-fdset_del(struct fdset *pfdset, int fd, fd_cb cb)
-{
-	struct fdentry *pfdentry;
 	int i;
+	struct pollfd *pfd;
+	struct fdentry *pfdentry;
+	int polled_fds_num, rc;
+	struct fdset *pfdset = arg;
+
+	if (pipe(pfdset->u.pipefd) < 0)
+		return NULL;
+
+	_fdset_add(pfdset, pfdset->u.readfd,
+		   _fdset_pipe_read_cb, NULL, NULL, pfdset);
+	assert(pfdset->num == 1);
+
+	do {
+		polled_fds_num = pfdset->num;
+		rc = poll(pfdset->rwfds, polled_fds_num, 1000 /* millisecs */);
+		if (rc < 0)
+			continue;
+
+		for (i = 0; i < polled_fds_num; i++) {
+			pfdentry = &pfdset->fds[i];
+			pfd = &pfdset->rwfds[i];
+
+			if (!pfd->revents)
+				continue;
+
+			if (pfd->fd == -1) {
+				/* the fd has been just disabled */
+				continue;
+			}
+
+			if (pfdentry->rcb && pfd->revents & (POLLIN | FDPOLLERR))
+				pfdentry->rcb(pfdentry->fd, pfdentry->ctx);
+			if (pfdentry->wcb && pfd->revents & (POLLOUT | FDPOLLERR))
+				pfdentry->wcb(pfdentry->fd, pfdentry->ctx);
+
+		}
+	} while (polled_fds_num > 1); /* there's always at least our pipe */
+
+	close(pfdset->u.readfd);
+	close(pfdset->u.writefd);
+	assert(pfdset->num == 1);
+	pfdset->num--;
+
+	return NULL;
+}
+
+int
+fdset_add(struct fdset *pfdset, int fd, fd_cb rcb, fd_cb wcb, void *ctx,
+	  fd_modify_cb modify_cb)
+{
+	struct fdset_event event = {0};
+	int r;
 
 	if (fd == -1)
 		return -EINVAL;
 
-	pthread_mutex_lock(&pfdset->fd_mutex);
-	for (i = 0; i < pfdset->num; i++) {
-		pfdentry = &pfdset->fds[i];
-		if (pfdentry->fd != fd)
-			continue;
+	event.type = EVENT_FD_ADD;
+	event.data.fd = fd;
+	event.data.rcb = rcb;
+	event.data.wcb = wcb;
+	event.data.modify_cb = modify_cb;
+	event.data.ctx = ctx;
 
-		if (pfdentry->removed)
-			continue;
+	r = write(pfdset->u.writefd, &event, sizeof(event));
+	if (r == -1)
+		return -errno;
 
-		pfdentry->removed = true;
-		pfdentry->del_cb = cb;
-		break;
+	if (r != sizeof(event))
+		return -EIO;
+
+	return 0;
+}
+
+int
+fdset_del(struct fdset *pfdset, int fd, fd_modify_cb modify_cb)
+{
+	struct fdset_event event = {0};
+	int r;
+
+	if (fd == -1)
+		return -EINVAL;
+
+	event.type = EVENT_FD_DEL;
+	event.data.fd = fd;
+	event.data.modify_cb = modify_cb;
+
+	r = write(pfdset->u.writefd, &event, sizeof(event));
+	if (r == -1)
+		return -errno;
+
+	if (r != sizeof(event))
+		return -EIO;
+
+	return 0;
+}
+
+int
+fdset_notify(struct fdset *pfdset, fd_cb cb_fn, void *ctx)
+{
+	struct fdset_event event = {0};
+	int r;
+
+	event.type = EVENT_NOTIFY;
+	event.data.notify_cb = cb_fn;
+	event.data.ctx = ctx;
+
+	r = write(pfdset->u.writefd, &event, sizeof(event));
+	if (r == -1) {
+		return -errno;
 	}
 
-	if (i == pfdset->num) {
-		pthread_mutex_unlock(&pfdset->fd_mutex);
-		return -ENOENT;
+	if (r != sizeof(event)) {
+		return -EIO;
 	}
-
-	pthread_mutex_unlock(&pfdset->fd_mutex);
-
-	/* Interrupt any blocking poll. This will result in pollfd array
-	 * being updated immediately. */
-	fdset_notify(pfdset, NULL, NULL);
 
 	return 0;
 }
@@ -177,135 +277,9 @@ fdset_enable(struct fdset *pfdset, int fd, bool enabled)
 		if (pfdentry->fd != fd)
 			continue;
 
-		if (enabled) {
+		if (enabled)
 			pfd->fd = pfdentry->fd;
-			/* no point in notifying the fdset, since we are
-			 * sure we're not blocked on poll(2) right now
-			 */
-		} else {
+		else
 			pfd->fd = -1;
-		}
 	}
-}
-
-static unsigned
-_fdset_shrink_by_one(struct fdset *pfdset)
-{
-	int last_valid_idx = -1;
-	int i;
-
-	for (i = pfdset->num - 1; i >= 0; i--) {
-		if (pfdset->fds[i].fd != -1) {
-			last_valid_idx = i;
-			break;
-		}
-	}
-
-	if (last_valid_idx == -1)
-		return 0;
-
-	for (i = 0; i < pfdset->num - 1; i++) {
-		if (pfdset->fds[i].fd != -1)
-			continue;
-
-		pfdset->fds[i] = pfdset->fds[last_valid_idx];
-		pfdset->rwfds[i] = pfdset->rwfds[last_valid_idx];
-		break;
-	}
-
-	pfdset->num--;
-	return pfdset->num;
-}
-
-static void *
-_fdset_event_dispatch(void *arg)
-{
-	int i;
-	struct pollfd *pfd;
-	struct fdentry *pfdentry;
-	fd_cb rcb, wcb, del_cb;
-	void *ctx;
-	int fd, max_fds, rc;
-	struct fdset *pfdset = arg;
-
-	do {
-		pthread_mutex_lock(&pfdset->fd_mutex);
-		max_fds = pfdset->num;
-		pthread_mutex_unlock(&pfdset->fd_mutex);
-
-		rc = poll(pfdset->rwfds, max_fds, 1000 /* millisecs */);
-		if (rc < 0)
-			continue;
-
-		pthread_mutex_lock(&pfdset->fd_mutex);
-		for (i = 0; i < max_fds; i++) {
-			pfdentry = &pfdset->fds[i];
-			pfd = &pfdset->rwfds[i];
-			fd = pfdentry->fd;
-			rcb = pfdentry->rcb;
-			wcb = pfdentry->wcb;
-			del_cb = pfdentry->del_cb;
-			ctx = pfdentry->ctx;
-
-			if (pfdentry->removed) {
-				pfdentry->fd = -1;
-				pfdentry->rcb = pfdentry->wcb = NULL;
-				pfdentry->del_cb = NULL;
-				pfdentry->ctx = NULL;
-				max_fds = _fdset_shrink_by_one(pfdset);
-				if (del_cb) {
-					pthread_mutex_unlock(&pfdset->fd_mutex);
-					del_cb(fd, ctx);
-					pthread_mutex_lock(&pfdset->fd_mutex);
-				}
-				i--; /* process the next fd now at the same index */
-				continue;
-			}
-
-			if (!pfd->revents)
-				continue;
-
-			pthread_mutex_unlock(&pfdset->fd_mutex);
-
-			if (rcb && pfd->revents & (POLLIN | FDPOLLERR))
-				rcb(fd, ctx);
-			if (wcb && pfd->revents & (POLLOUT | FDPOLLERR))
-				wcb(fd, ctx);
-
-			pthread_mutex_lock(&pfdset->fd_mutex);
-		}
-		pthread_mutex_unlock(&pfdset->fd_mutex);
-	} while (max_fds > 1); /* there's always at least our pipe */
-
-	close(pfdset->u.readfd);
-	close(pfdset->u.writefd);
-	assert(pfdset->num == 1);
-	pfdset->num--;
-
-	return NULL;
-}
-
-int
-fdset_notify(struct fdset *fdset, fd_cb cb_fn, void *ctx)
-{
-	struct fdset_event event;
-	int r;
-
-	if (fdset->num == 0) {
-		return -ESRCH;
-	}
-
-	event.cb_fn = cb_fn;
-	event.ctx = ctx;
-
-	r = write(fdset->u.writefd, &event, sizeof(event));
-	if (r == -1) {
-		return -errno;
-	}
-
-	if (r != sizeof(event)) {
-		return -EIO;
-	}
-
-	return 0;
 }
