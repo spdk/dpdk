@@ -2,6 +2,23 @@
   "comments": [
     {
       "key": {
+        "uuid": "ab90fd25_c95f06e8",
+        "filename": "examples/vhost_test_poc/main.c",
+        "patchSetId": 2
+      },
+      "lineNbr": 124,
+      "author": {
+        "id": 1011218
+      },
+      "writtenOn": "2018-06-06T09:32:21Z",
+      "side": 1,
+      "message": "set_features seems to be missing",
+      "revId": "f4188913056d98d02030f9e4da59bf7c9089536d",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": true
+    },
+    {
+      "key": {
         "uuid": "1b5e756e_cf4795c4",
         "filename": "examples/vhost_test_poc/main.c",
         "patchSetId": 2
@@ -18,6 +35,29 @@
         "startChar": 38,
         "endLine": 127,
         "endChar": 59
+      },
+      "revId": "f4188913056d98d02030f9e4da59bf7c9089536d",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "d2318d59_661573ce",
+        "filename": "examples/vhost_test_poc/main.c",
+        "patchSetId": 2
+      },
+      "lineNbr": 153,
+      "author": {
+        "id": 1011218
+      },
+      "writtenOn": "2018-06-06T09:32:21Z",
+      "side": 1,
+      "message": "you\u0027re only allowed to send this message if VHOST_USER_F_PROTOCOL_FEATURES has been negotiated",
+      "range": {
+        "startLine": 153,
+        "startChar": 22,
+        "endLine": 153,
+        "endChar": 49
       },
       "revId": "f4188913056d98d02030f9e4da59bf7c9089536d",
       "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
