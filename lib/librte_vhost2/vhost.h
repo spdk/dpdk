@@ -94,6 +94,11 @@ enum {
 	VHOST_USER_MAX = 28
 };
 
+enum {
+	VHOST_USER_SLAVE_NONE = 0,
+	VHOST_USER_SLAVE_CONFIG_CHANGE_MSG = 2
+};
+
 struct vhost_user_msg_mem_region {
 	uint64_t guest_phys_addr;
 	uint64_t memory_size;
