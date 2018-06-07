@@ -163,6 +163,8 @@ struct vhost_dev {
 	unsigned op_pending_cnt;
 	vhost_dev_ops_cb op_cpl_fn;
 	void *op_cpl_ctx;
+	bool op_failed_flag;
+	bool op_cpl_called_inline;
 
 	bool removed;
 	bool deleted;
