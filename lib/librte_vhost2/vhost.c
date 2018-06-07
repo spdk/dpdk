@@ -727,6 +727,10 @@ _handle_msg(struct vhost_dev *vdev)
 				msg->payload.config.flags);
 		break;
 
+	case VHOST_USER_SET_SLAVE_REQ_FD:
+		/* managed by the transport layer */
+		break;
+
 	default:
 		ret = -1;
 		break;
