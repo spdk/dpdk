@@ -292,7 +292,7 @@ vhost_user_destroy_connection(struct vhost_user_connection *conn)
 static void vhost_user_read_cb(int connfd __rte_unused, void *ctx);
 static int vhost_user_handle_msg(struct vhost_dev *vdev,
 		struct vhost_user_msg *msg);
-static void vhost_user_msg_cpl(struct vhost_dev *vdev,
+static void vhost_user_msg_cpl(struct vhost_dev *vdev, int rc,
 		struct vhost_user_msg *msg);
 
 static void
@@ -809,11 +809,16 @@ _vhost_user_device_init_cpl(struct vhost_dev *vdev __rte_unused,
 }
 
 static void
-vhost_user_msg_cpl(struct vhost_dev *vdev,
+vhost_user_msg_cpl(struct vhost_dev *vdev, int rc,
 		struct vhost_user_msg *msg __rte_unused)
 {
 	struct vhost_user_connection *conn = container_of(vdev,
 			struct vhost_user_connection, vdev);
+
+	if (rc) {
+		vhost_user_destroy_connection(conn);
+		return;
+	}
 
 	switch (msg->type) {
 	case VHOST_USER_SET_MEM_TABLE:
