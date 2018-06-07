@@ -33,6 +33,17 @@ enum rte_vhost2_set_config_type {
 	VHOST_SET_CONFIG_TYPE_MIGRATION = 1,
 };
 
+/* Some queues are supposed to be initialized in enabled state, although
+ * only the user knows which ones. If the user encounters a queue in \c
+ * VHOST_VQ_DEFAULT_STATE, it means that it hasn't been explicitly disabled
+ * and can be manually set to \c VHOST_VQ_ENABLED if required.
+ */
+enum rte_vhost2_vq_state {
+	VHOST_VQ_DISABLED = -1,
+	VHOST_VQ_DEFAULT_STATE = 0,
+	VHOST_VQ_ENABLED = 1,
+};
+
 /** Single memory region. Both physically and virtually contiguous */
 struct rte_vhost2_mem_region {
 	uint64_t guest_phys_addr;
@@ -68,6 +79,7 @@ struct rte_vhost2_vq {
 	uint64_t log_guest_addr;
 	uint16_t last_avail_idx;
 	uint16_t last_used_idx;
+	enum rte_vhost2_vq_state state;
 };
 
 /**

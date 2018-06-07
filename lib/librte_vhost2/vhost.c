@@ -229,6 +229,7 @@ _msg_handler_alloc_stop_vq(struct vhost_dev *vdev, uint16_t vq_idx)
 		return -1;
 	}
 
+	vq->q.state = VHOST_VQ_DEFAULT_STATE;
 	vq->idx = vq_idx;
 	vq->callfd = -1;
 	vq->kickfd = -1;
@@ -435,6 +436,27 @@ translate_ring_addresses(struct vhost_dev *dev, struct vhost_vq *vq,
 	return 0;
 }
 
+static uint64_t
+get_supported_protocol_features(struct vhost_dev *vdev)
+{
+	uint64_t features;
+
+	features = (1ULL << VHOST_USER_PROTOCOL_F_MQ) |
+		   (1ULL << VHOST_USER_PROTOCOL_F_REPLY_ACK);
+
+	/*
+	 * REPLY_ACK protocol feature is only mandatory for now
+	 * for IOMMU feature. If IOMMU is explicitly disabled by the
+	 * application, disable also REPLY_ACK feature for older buggy
+	 * Qemu versions (from v2.7.0 to v2.9.0).
+	 */
+	if (!vdev->dev.iommu)
+		features &=
+			~(1ULL << VHOST_USER_PROTOCOL_F_REPLY_ACK);
+
+	return features;
+}
+
 static int
 send_vhost_reply(struct vhost_dev *vdev, struct vhost_user_msg *msg)
 {
@@ -573,12 +595,15 @@ _handle_msg(struct vhost_dev *vdev)
 			"vring kick idx:%d file:%d\n", file.index, file.fd);
 
 		vq = vdev->vq[file.index];
-
 		if (vq->kickfd >= 0)
 			close(vq->kickfd);
 
 		vq->kickfd = file.fd;
 		vq->kicked = true;
+
+		if (!(vdev->features &
+				(1ULL << VHOST_USER_F_PROTOCOL_FEATURES)))
+			vq->q.state = VHOST_VQ_ENABLED;
 
 		break;
 
@@ -605,10 +630,54 @@ _handle_msg(struct vhost_dev *vdev)
 		RTE_LOG(INFO, VHOST_CONFIG, "not implemented\n");
 		break;
 
+	case VHOST_USER_GET_PROTOCOL_FEATURES:
+		if (!(vdev->features &
+				(1ULL << VHOST_USER_F_PROTOCOL_FEATURES))) {
+			ret = -1;
+			break;
+		}
+
+		msg->payload.u64 = get_supported_protocol_features(vdev);
+		msg->size = sizeof(msg->payload.u64);
+		ret = send_vhost_reply(vdev, msg);
+		break;
+
+	case VHOST_USER_SET_PROTOCOL_FEATURES:
+		if (!(vdev->features &
+				(1ULL << VHOST_USER_F_PROTOCOL_FEATURES))) {
+			ret = -1;
+			break;
+		}
+
+		if (msg->payload.u64 & ~get_supported_protocol_features(vdev)) {
+			RTE_LOG(ERR, VHOST_CONFIG,
+				"received invalid negotiated protocol features.\n");
+			ret = -1;
+			break;
+		}
+
+		vdev->protocol_features = msg->payload.u64;
+		break;
+
 	case VHOST_USER_GET_QUEUE_NUM:
 		msg->payload.u64 = (uint64_t)VHOST_MAX_VIRTQUEUES;
 		msg->size = sizeof(msg->payload.u64);
 		ret = send_vhost_reply(vdev, msg);
+		break;
+
+	case VHOST_USER_SET_VRING_ENABLE:
+		if (!(vdev->features &
+				(1ULL << VHOST_USER_F_PROTOCOL_FEATURES))) {
+			ret = -1;
+			break;
+		}
+
+		vq = vdev->vq[msg->payload.state.index];
+		if (msg->payload.state.num & 1)
+			vq->q.state = VHOST_VQ_ENABLED;
+		else
+			vq->q.state = VHOST_VQ_DISABLED;
+
 		break;
 
 	default:
@@ -633,6 +702,23 @@ _handle_msg(struct vhost_dev *vdev)
 		break;
 	default:
 		break;
+	}
+
+	/* messages that already sent a reply won't have the
+	 * VHOST_USER_NEED_REPLY bit set.
+	 */
+	if ((vdev->protocol_features &
+			(1ULL << VHOST_USER_PROTOCOL_F_REPLY_ACK)) &&
+	    (msg->flags & VHOST_USER_NEED_REPLY)) {
+		msg->payload.u64 = !!ret;
+		msg->size = sizeof(msg->payload.u64);
+		ret = send_vhost_reply(vdev, msg);
+		if (ret) {
+			RTE_LOG(ERR, VHOST_CONFIG,
+				"failed to send reply\n");
+			complete_msg(vdev, ret);
+			return;
+		}
 	}
 
 	start_all_vqs(vdev, 0);
@@ -669,6 +755,7 @@ vhost_dev_msg_handler(struct vhost_dev *vdev, struct vhost_user_msg *msg)
 		return _msg_handler_alloc_stop_vq(vdev,
 						  msg->payload.addr.index);
 	case VHOST_USER_SET_MEM_TABLE:
+	case VHOST_USER_SET_PROTOCOL_FEATURES:
 		_msg_handler_stop_all_vqs(vdev);
 		return 0;
 	default:
