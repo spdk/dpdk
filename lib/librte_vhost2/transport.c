@@ -66,6 +66,12 @@ rte_vhost2_dev_call(struct rte_vhost2_dev *vdev, struct rte_vhost2_vq *vq)
 }
 
 void
+rte_vhost2_dev_cfg_call(struct rte_vhost2_dev *vdev)
+{
+	vdev->transport->dev_cfg_call(vdev);
+}
+
+void
 vhost_transport_register(struct vhost_transport_ops *transport)
 {
 	pthread_mutex_lock(&g_vhost_mutex);
