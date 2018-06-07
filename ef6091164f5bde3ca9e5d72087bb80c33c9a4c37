@@ -25,6 +25,30 @@
     },
     {
       "key": {
+        "uuid": "817f6819_bd5d0aa2",
+        "filename": "lib/librte_vhost2/fd_man.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 92,
+      "author": {
+        "id": 1011218
+      },
+      "writtenOn": "2018-06-07T11:51:42Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "f6f911e4_7367e364",
+      "range": {
+        "startLine": 92,
+        "startChar": 2,
+        "endLine": 92,
+        "endChar": 29
+      },
+      "revId": "ef6091164f5bde3ca9e5d72087bb80c33c9a4c37",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "70bc8ee0_837db0df",
         "filename": "lib/librte_vhost2/fd_man.c",
         "patchSetId": 1
@@ -60,6 +84,24 @@
     },
     {
       "key": {
+        "uuid": "ab1f03a2_47746044",
+        "filename": "lib/librte_vhost2/fd_man.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 97,
+      "author": {
+        "id": 1011218
+      },
+      "writtenOn": "2018-06-07T11:51:42Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "57271c06_9444d085",
+      "revId": "ef6091164f5bde3ca9e5d72087bb80c33c9a4c37",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "e93e78a2_0292610b",
         "filename": "lib/librte_vhost2/fd_man.c",
         "patchSetId": 1
@@ -71,6 +113,30 @@
       "writtenOn": "2018-06-07T09:40:30Z",
       "side": 1,
       "message": "This should be done during init. If pipe() failed, how you can know that thread finished?",
+      "range": {
+        "startLine": 153,
+        "startChar": 0,
+        "endLine": 157,
+        "endChar": 46
+      },
+      "revId": "ef6091164f5bde3ca9e5d72087bb80c33c9a4c37",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "c7445955_04d3afc7",
+        "filename": "lib/librte_vhost2/fd_man.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 157,
+      "author": {
+        "id": 1011218
+      },
+      "writtenOn": "2018-06-07T11:51:42Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "e93e78a2_0292610b",
       "range": {
         "startLine": 153,
         "startChar": 0,
