@@ -61,11 +61,11 @@ static const char *vhost_message_str[VHOST_USER_MAX] = {
 	 (1ULL << VHOST_USER_PROTOCOL_F_REPLY_ACK) | \
 	 (1ULL << VHOST_USER_PROTOCOL_F_CONFIG))
 
-static void _handle_msg(struct vhost_dev *vdev);
+static void handle_msg(struct vhost_dev *vdev);
 static void _vhost_dev_destroy_continue(struct vhost_dev *vdev);
 static void _msg_handler_stop_vq(struct vhost_dev *vdev, struct vhost_vq *vq);
 static void _msg_handler_stop_all_vqs(struct vhost_dev *vdev);
-static void start_all_vqs(struct vhost_dev *vdev, uint16_t starting_idx);
+static void _msg_handler_start_all_vqs(struct vhost_dev *vdev, uint16_t starting_idx);
 
 int
 vhost_dev_init(struct vhost_dev *vdev, uint64_t features,
@@ -178,7 +178,7 @@ _msg_handler_stop_all_vqs(struct vhost_dev *vdev)
 	if (vdev->removed)
 		_vhost_dev_destroy_continue(vdev);
 	else
-		_handle_msg(vdev);
+		handle_msg(vdev);
 }
 
 static void
@@ -194,7 +194,6 @@ _msg_handler_stop_vq_cpl(struct vhost_dev *vdev, int rc, void *ctx)
 	}
 
 	_stop_vq(vq);
-	_handle_msg(vdev);
 }
 
 static void
@@ -229,7 +228,7 @@ _msg_handler_alloc_stop_vq(struct vhost_dev *vdev, uint16_t vq_idx)
 		if (vq->started)
 			_msg_handler_stop_vq(vdev, vq);
 		else
-			_handle_msg(vdev);
+			handle_msg(vdev);
 		return 0;
 	}
 
@@ -248,7 +247,7 @@ _msg_handler_alloc_stop_vq(struct vhost_dev *vdev, uint16_t vq_idx)
 	vq->started = false;
 
 	vdev->vq[vq_idx] = vq;
-	_handle_msg(vdev);
+	handle_msg(vdev);
 	return 0;
 }
 
@@ -269,12 +268,15 @@ _start_all_vqs_cpl(struct vhost_dev *vdev, int rc, void *ctx)
 
 	if (vq->idx < UINT16_MAX) {
 		/* Start the next queue. */
-		start_all_vqs(vdev, vq->idx + 1);
+		_msg_handler_start_all_vqs(vdev, vq->idx + 1);
+		return;
 	}
+
+	handle_msg(vdev);
 }
 
 static void
-start_all_vqs(struct vhost_dev *vdev, uint16_t starting_idx)
+_msg_handler_start_all_vqs(struct vhost_dev *vdev, uint16_t starting_idx)
 {
 	struct vhost_vq *vq;
 	uint16_t vq_idx;
@@ -294,6 +296,8 @@ start_all_vqs(struct vhost_dev *vdev, uint16_t starting_idx)
 		vdev->ops->queue_start(&vdev->dev, &vq->q);
 		return;
 	}
+
+	handle_msg(vdev);
 }
 
 static void
@@ -455,7 +459,7 @@ send_vhost_reply(struct vhost_dev *vdev, struct vhost_user_msg *msg)
 }
 
 static int
-_process_msg(struct vhost_dev *vdev)
+_parse_msg(struct vhost_dev *vdev)
 {
 	struct vhost_user_msg *msg = vdev->msg;
 	struct vhost_vq *vq;
@@ -523,7 +527,6 @@ _process_msg(struct vhost_dev *vdev)
 		vq = vdev->vq[msg->payload.state.index];
 		vq->q.last_used_idx = msg->payload.state.num;
 		vq->q.last_avail_idx = msg->payload.state.num;
-
 		return 0;
 
 	case VHOST_USER_GET_VRING_BASE:
@@ -687,44 +690,100 @@ _process_msg(struct vhost_dev *vdev)
 }
 
 static void
-_handle_msg(struct vhost_dev *vdev)
+handle_msg(struct vhost_dev *vdev)
 {
 	struct vhost_user_msg *msg = vdev->msg;
 	int ret = 0;
 
-	if (vdev->dev_ops->handle_msg) {
-		ret = vdev->dev_ops->handle_msg(vdev, msg);
-		if (ret < 0) {
-			/* FIXME */
-			abort();
+	if (vdev->msg_state < VHOST_DEV_MSG_COMPLETE)
+		vdev->msg_state += 1;
+
+	switch (vdev->msg_state) {
+	case VHOST_DEV_MSG_PREPARE:
+		switch (msg->type) {
+		case VHOST_USER_SET_VRING_KICK:
+		case VHOST_USER_SET_VRING_CALL:
+		case VHOST_USER_SET_VRING_ERR:
+			ret = _msg_handler_alloc_stop_vq(vdev,
+					msg->payload.u64 &
+						VHOST_USER_VRING_IDX_MASK);
+			break;
+		case VHOST_USER_SET_VRING_NUM:
+		case VHOST_USER_SET_VRING_BASE:
+		case VHOST_USER_SET_VRING_ENABLE:
+			ret = _msg_handler_alloc_stop_vq(vdev,
+					msg->payload.state.index);
+			break;
+		case VHOST_USER_SET_VRING_ADDR:
+			ret = _msg_handler_alloc_stop_vq(vdev,
+					msg->payload.addr.index);
+			break;
+		case VHOST_USER_SET_MEM_TABLE:
+		case VHOST_USER_SET_PROTOCOL_FEATURES:
+			_msg_handler_stop_all_vqs(vdev);
+			break;
+
+		default:
+			break;
 		}
-	}
 
-	ret = _process_msg(vdev);
-	if (ret) {
-		/* FIXME */
-		abort();
-	}
+		if (ret)
+			break;
 
-	/* messages that already sent a reply won't have the
-	 * VHOST_USER_NEED_REPLY bit set.
-	 */
-	if ((vdev->protocol_features &
-			(1ULL << VHOST_USER_PROTOCOL_F_REPLY_ACK)) &&
-	    (msg->flags & VHOST_USER_NEED_REPLY)) {
-		msg->payload.u64 = !!ret;
-		msg->size = sizeof(msg->payload.u64);
-		ret = send_vhost_reply(vdev, msg);
-		if (ret) {
-			RTE_LOG(ERR, VHOST_CONFIG, "failed to send reply\n");
+		return;
+
+	case VHOST_DEV_MSG_PARSE:
+		if (vdev->dev_ops->handle_msg) {
+			ret = vdev->dev_ops->handle_msg(vdev, msg);
+			if (ret < 0) {
+				break;
+			}
+		}
+
+		ret = _parse_msg(vdev);
+		if (ret < 0)
+			break;
+
+		if (ret == 0 || vdev->op_pending_cnt)
 			return;
+
+		/* break through */
+
+	case VHOST_DEV_MSG_POSTPROCESS:
+		/* messages that already sent a reply won't have the
+		 * VHOST_USER_NEED_REPLY bit set.
+		 */
+		if ((vdev->protocol_features &
+				(1ULL << VHOST_USER_PROTOCOL_F_REPLY_ACK)) &&
+		    (msg->flags & VHOST_USER_NEED_REPLY)) {
+			msg->payload.u64 = !!ret;
+			msg->size = sizeof(msg->payload.u64);
+			ret = send_vhost_reply(vdev, msg);
+			if (ret) {
+				RTE_LOG(ERR, VHOST_CONFIG,
+					"failed to send reply\n");
+				break;
+			}
 		}
+
+		_msg_handler_start_all_vqs(vdev, 0);
+		return;
+
+	case VHOST_DEV_MSG_COMPLETE:
+		break;
+
+	default:
+		abort();
+		break;
 	}
 
-	if (vdev->dev_ops->msg_cpl)
-		vdev->dev_ops->msg_cpl(vdev, msg);
+	if (ret)
+		vdev->msg_state = VHOST_DEV_MSG_COMPLETE;
 
-	start_all_vqs(vdev, 0);
+	if (vdev->msg_state == VHOST_DEV_MSG_COMPLETE &&
+			vdev->dev_ops->msg_cpl &&
+			vdev->op_pending_cnt == 0)
+		vdev->dev_ops->msg_cpl(vdev, ret, msg);
 }
 
 int
@@ -740,29 +799,7 @@ vhost_dev_msg_handler(struct vhost_dev *vdev, struct vhost_user_msg *msg)
 		msg->type, vhost_message_str[msg->type]);
 
 	vdev->msg = msg;
-
-	switch (msg->type) {
-	case VHOST_USER_SET_VRING_KICK:
-	case VHOST_USER_SET_VRING_CALL:
-	case VHOST_USER_SET_VRING_ERR:
-		return _msg_handler_alloc_stop_vq(vdev,
-				msg->payload.u64 & VHOST_USER_VRING_IDX_MASK);
-	case VHOST_USER_SET_VRING_NUM:
-	case VHOST_USER_SET_VRING_BASE:
-	case VHOST_USER_SET_VRING_ENABLE:
-		return _msg_handler_alloc_stop_vq(vdev,
-						  msg->payload.state.index);
-	case VHOST_USER_SET_VRING_ADDR:
-		return _msg_handler_alloc_stop_vq(vdev,
-						  msg->payload.addr.index);
-	case VHOST_USER_SET_MEM_TABLE:
-	case VHOST_USER_SET_PROTOCOL_FEATURES:
-		_msg_handler_stop_all_vqs(vdev);
-		return 0;
-	default:
-		_handle_msg(vdev);
-		return 0;
-	}
-
+	vdev->msg_state = VHOST_DEV_MSG_RECEIVE;
+	handle_msg(vdev);
 	return 0;
 }

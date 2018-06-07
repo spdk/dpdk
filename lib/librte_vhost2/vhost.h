@@ -162,7 +162,7 @@ typedef void (*vhost_dev_ops_cb)(struct vhost_dev *vdev,
 
 struct vhost_dev_ops {
 	int (*handle_msg)(struct vhost_dev *vdev, struct vhost_user_msg *msg);
-	void (*msg_cpl)(struct vhost_dev *vdev, struct vhost_user_msg *msg);
+	void (*msg_cpl)(struct vhost_dev *vdev, int rc, struct vhost_user_msg *msg);
 	int (*send_reply)(struct vhost_dev *vdev, struct vhost_user_msg *msg);
 };
 
@@ -174,6 +174,14 @@ struct vhost_vq {
 	bool kicked;
 	bool started;
 } __rte_cache_aligned;
+
+enum vhost_dev_msg_processing_state {
+	VHOST_DEV_MSG_RECEIVE,
+	VHOST_DEV_MSG_PREPARE,
+	VHOST_DEV_MSG_PARSE,
+	VHOST_DEV_MSG_POSTPROCESS,
+	VHOST_DEV_MSG_COMPLETE,
+};
 
 struct vhost_dev {
 	struct rte_vhost2_dev dev;
@@ -193,6 +201,7 @@ struct vhost_dev {
 
 	/* currently handled msg */
 	struct vhost_user_msg *msg;
+	enum vhost_dev_msg_processing_state msg_state;
 
 	unsigned op_pending_cnt;
 	vhost_dev_ops_cb op_cpl_fn;
