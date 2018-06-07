@@ -2,6 +2,29 @@
   "comments": [
     {
       "key": {
+        "uuid": "f6f911e4_7367e364",
+        "filename": "lib/librte_vhost2/fd_man.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 92,
+      "author": {
+        "id": 1011230
+      },
+      "writtenOn": "2018-06-07T09:40:30Z",
+      "side": 1,
+      "message": "Don\u0027t think this is need unless memcpy is used. But you use assignment operator so it should be safe if copying to the same place.",
+      "range": {
+        "startLine": 92,
+        "startChar": 2,
+        "endLine": 92,
+        "endChar": 29
+      },
+      "revId": "ef6091164f5bde3ca9e5d72087bb80c33c9a4c37",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "70bc8ee0_837db0df",
         "filename": "lib/librte_vhost2/fd_man.c",
         "patchSetId": 1
@@ -16,6 +39,47 @@
       "revId": "ef6091164f5bde3ca9e5d72087bb80c33c9a4c37",
       "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
       "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "57271c06_9444d085",
+        "filename": "lib/librte_vhost2/fd_man.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 97,
+      "author": {
+        "id": 1011230
+      },
+      "writtenOn": "2018-06-07T09:40:30Z",
+      "side": 1,
+      "message": "True",
+      "parentUuid": "70bc8ee0_837db0df",
+      "revId": "ef6091164f5bde3ca9e5d72087bb80c33c9a4c37",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "e93e78a2_0292610b",
+        "filename": "lib/librte_vhost2/fd_man.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 157,
+      "author": {
+        "id": 1011230
+      },
+      "writtenOn": "2018-06-07T09:40:30Z",
+      "side": 1,
+      "message": "This should be done during init. If pipe() failed, how you can know that thread finished?",
+      "range": {
+        "startLine": 153,
+        "startChar": 0,
+        "endLine": 157,
+        "endChar": 46
+      },
+      "revId": "ef6091164f5bde3ca9e5d72087bb80c33c9a4c37",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
     }
   ]
 }
