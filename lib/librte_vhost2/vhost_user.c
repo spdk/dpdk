@@ -74,6 +74,8 @@ struct vhost_user_connection {
 	struct vhost_user_msg msg;
 	rte_atomic32_t op_rc;
 
+	int slave_req_fd;
+
 	bool removed;
 
 	TAILQ_ENTRY(vhost_user_connection) tailq;
@@ -358,6 +360,7 @@ vhost_user_add_connection(int fd, struct vhost_user_socket *vsocket)
 			&vhost_dev_user_ops, conn->vsocket->ops);
 	conn->fd = fd;
 	rte_atomic32_init(&conn->op_rc);
+	conn->slave_req_fd = -1;
 
 	TAILQ_INSERT_TAIL(&conn->vsocket->conn_list, conn, tailq);
 
@@ -584,6 +587,25 @@ vhost_user_dev_call(struct rte_vhost2_dev *vdev __rte_unused,
 	eventfd_write(vq->callfd, (eventfd_t)1);
 }
 
+static void
+vhost_user_dev_cfg_call(struct rte_vhost2_dev *_vdev)
+{
+	struct vhost_dev *vdev = container_of(_vdev,
+			struct vhost_dev, dev);
+	struct vhost_user_connection *conn = container_of(vdev,
+			struct vhost_user_connection, vdev);
+	struct vhost_user_msg *msg = &conn->msg;
+
+	if ((vdev->protocol_features &
+			(1ULL << VHOST_USER_PROTOCOL_F_CONFIG)) == 0)
+			return;
+
+	msg->type = VHOST_USER_SLAVE_CONFIG_CHANGE_MSG;
+	msg->size = 0;
+	send_fd_message(conn->slave_req_fd, (char *)msg,
+			offsetof(struct vhost_user_msg, payload.u64),
+			NULL, 0);
+}
 
 static bool
 vhost_user_memory_changed(struct vhost_user_msg_memory *new,
@@ -750,11 +772,23 @@ err_free:
 }
 
 static int
+vhost_user_set_slave_req_fd(struct vhost_dev *vdev, struct vhost_user_msg *msg)
+{
+	struct vhost_user_connection *conn = container_of(vdev,
+			struct vhost_user_connection, vdev);
+
+	conn->slave_req_fd = msg->fds[0];
+	return 0;
+}
+
+static int
 vhost_user_handle_msg(struct vhost_dev *vdev, struct vhost_user_msg *msg)
 {
 	switch (msg->type) {
 	case VHOST_USER_SET_MEM_TABLE:
 		return vhost_user_set_mem_table(vdev, msg);
+	case VHOST_USER_SET_SLAVE_REQ_FD:
+		return vhost_user_set_slave_req_fd(vdev, msg);
 	default:
 		return 1;
 	}
@@ -840,6 +874,7 @@ static struct vhost_transport_ops vhost_user_transport = {
 	.tgt_unregister = vhost_user_tgt_unregister,
 	.dev_op_cpl = vhost_user_dev_op_complete,
 	.dev_call = vhost_user_dev_call,
+	.dev_cfg_call = vhost_user_dev_cfg_call,
 };
 
 VHOST_TRANSPORT_REGISTER(vhost_user_transport);

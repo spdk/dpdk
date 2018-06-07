@@ -16,6 +16,7 @@ struct vhost_transport_ops {
 			void (*cb_fn)(void *arg), void *cb_arg);
 	void (*dev_op_cpl)(struct rte_vhost2_dev *vdev, int rc);
 	void (*dev_call)(struct rte_vhost2_dev *vdev, struct rte_vhost2_vq *vq);
+	void (*dev_cfg_call)(struct rte_vhost2_dev *vdev);
 
 	TAILQ_ENTRY(vhost_transport_ops) tailq;
 };

@@ -674,6 +674,10 @@ _process_msg(struct vhost_dev *vdev)
 				msg->payload.config.size,
 				msg->payload.config.flags);
 
+	case VHOST_USER_SET_SLAVE_REQ_FD:
+		/* managed by the transport layer */
+		return 0;
+
 	default:
 		/* FIXME */
 		abort();
