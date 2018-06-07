@@ -442,7 +442,8 @@ get_supported_protocol_features(struct vhost_dev *vdev)
 	uint64_t features;
 
 	features = (1ULL << VHOST_USER_PROTOCOL_F_MQ) |
-		   (1ULL << VHOST_USER_PROTOCOL_F_REPLY_ACK);
+		   (1ULL << VHOST_USER_PROTOCOL_F_REPLY_ACK) |
+		   (1ULL << VHOST_USER_PROTOCOL_F_CONFIG);
 
 	/*
 	 * REPLY_ACK protocol feature is only mandatory for now
@@ -453,6 +454,10 @@ get_supported_protocol_features(struct vhost_dev *vdev)
 	if (!vdev->dev.iommu)
 		features &=
 			~(1ULL << VHOST_USER_PROTOCOL_F_REPLY_ACK);
+
+	if (!vdev->ops->get_config || !vdev->ops->set_config)
+		features &=
+			~(1ULL << VHOST_USER_PROTOCOL_F_CONFIG);
 
 	return features;
 }
@@ -678,6 +683,48 @@ _handle_msg(struct vhost_dev *vdev)
 		else
 			vq->q.state = VHOST_VQ_DISABLED;
 
+		break;
+
+	case VHOST_USER_GET_CONFIG:
+		if (!(vdev->protocol_features &
+				(1ULL << VHOST_USER_PROTOCOL_F_CONFIG))) {
+				ret = -1;
+				break;
+		}
+
+		if (msg->payload.config.size > VHOST_USER_MAX_CONFIG_SIZE) {
+			ret = -1;
+			break;
+		}
+
+
+		if (vdev->ops->get_config(&vdev->dev,
+				msg->payload.config.region,
+				msg->payload.config.size)) {
+			/* zero length payload indicates an error */
+			msg->size = 0;
+		}
+
+		ret = send_vhost_reply(vdev, msg);
+		break;
+
+	case VHOST_USER_SET_CONFIG:
+		if (!(vdev->protocol_features &
+				(1ULL << VHOST_USER_PROTOCOL_F_CONFIG))) {
+				ret = -1;
+				break;
+		}
+
+		if (msg->payload.config.size > VHOST_USER_MAX_CONFIG_SIZE) {
+			ret = -1;
+			break;
+		}
+
+		ret = vdev->ops->set_config(&vdev->dev,
+				msg->payload.config.region,
+				msg->payload.config.offset,
+				msg->payload.config.size,
+				msg->payload.config.flags);
 		break;
 
 	default:

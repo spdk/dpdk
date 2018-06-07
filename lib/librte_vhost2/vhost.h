@@ -18,6 +18,10 @@
 #define VHOST_USER_PROTOCOL_F_REPLY_ACK	3
 #endif
 
+#ifndef VHOST_USER_PROTOCOL_F_CONFIG
+#define VHOST_USER_PROTOCOL_F_CONFIG	9
+#endif
+
 #ifndef VIRTIO_F_ANY_LAYOUT
 #define VIRTIO_F_ANY_LAYOUT 27
 #endif
@@ -61,6 +65,7 @@ struct vhost_msg {
 #endif
 
 #define VHOST_MEMORY_MAX_NREGIONS	8
+#define VHOST_USER_MAX_CONFIG_SIZE	256
 
 enum {
 	VHOST_USER_NONE = 0,
@@ -84,6 +89,8 @@ enum {
 	VHOST_USER_SET_VRING_ENABLE = 18,
 	VHOST_USER_SET_SLAVE_REQ_FD = 21,
 	VHOST_USER_IOTLB_MSG = 22,
+	VHOST_USER_GET_CONFIG = 24,
+	VHOST_USER_SET_CONFIG = 25,
 	VHOST_USER_MAX = 28
 };
 
@@ -105,6 +112,13 @@ struct vhost_user_msg_log {
 	uint64_t mmap_offset;
 };
 
+struct vhost_user_msg_config {
+	uint32_t offset;
+	uint32_t size;
+	uint32_t flags;
+	uint8_t region[VHOST_USER_MAX_CONFIG_SIZE];
+};
+
 struct vhost_user_msg {
 	uint32_t type;
 
@@ -122,6 +136,7 @@ struct vhost_user_msg {
 		struct vhost_user_msg_memory memory;
 		struct vhost_user_msg_log log;
 		struct vhost_iotlb_msg iotlb;
+		struct vhost_user_msg_config config;
 	} payload;
 	int fds[VHOST_MEMORY_MAX_NREGIONS];
 } __attribute((packed));
