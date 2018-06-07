@@ -58,7 +58,8 @@ static const char *vhost_message_str[VHOST_USER_MAX] = {
 
 #define SUPPORTED_PROTOCOL_FEATURES \
 	((1ULL << VHOST_USER_PROTOCOL_F_MQ) | \
-	 (1ULL << VHOST_USER_PROTOCOL_F_REPLY_ACK))
+	 (1ULL << VHOST_USER_PROTOCOL_F_REPLY_ACK) | \
+	 (1ULL << VHOST_USER_PROTOCOL_F_CONFIG))
 
 static void _handle_msg(struct vhost_dev *vdev);
 static void _vhost_dev_destroy_continue(struct vhost_dev *vdev);
@@ -605,6 +606,10 @@ _process_msg(struct vhost_dev *vdev)
 			msg->payload.u64 &=
 				~(1ULL << VHOST_USER_PROTOCOL_F_REPLY_ACK);
 
+		if (!vdev->ops->get_config || !vdev->ops->set_config)
+			msg->payload.u64 &=
+				~(1ULL << VHOST_USER_PROTOCOL_F_CONFIG);
+
 		return send_vhost_reply(vdev, msg);
 
 	case VHOST_USER_SET_PROTOCOL_FEATURES:
@@ -637,6 +642,37 @@ _process_msg(struct vhost_dev *vdev)
 			vq->q.state = VHOST_VQ_DISABLED;
 
 		return 0;
+
+	case VHOST_USER_GET_CONFIG:
+		if ((vdev->protocol_features &
+				(1ULL << VHOST_USER_PROTOCOL_F_CONFIG)) == 0)
+				return -1;
+
+		if (msg->payload.config.size > VHOST_USER_MAX_CONFIG_SIZE)
+			return -1;
+
+		if (vdev->ops->get_config(&vdev->dev,
+				msg->payload.config.region,
+				msg->payload.config.size)) {
+			/* zero length payload indicates an error */
+			msg->size = 0;
+		}
+
+		return send_vhost_reply(vdev, msg);
+
+	case VHOST_USER_SET_CONFIG:
+		if ((vdev->protocol_features &
+				(1ULL << VHOST_USER_PROTOCOL_F_CONFIG)) == 0)
+				return -1;
+
+		if (msg->payload.config.size > VHOST_USER_MAX_CONFIG_SIZE)
+			return -1;
+
+		return vdev->ops->set_config(&vdev->dev,
+				msg->payload.config.region,
+				msg->payload.config.offset,
+				msg->payload.config.size,
+				msg->payload.config.flags);
 
 	default:
 		/* FIXME */
