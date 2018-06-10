@@ -97,11 +97,10 @@ _fdset_del(struct fdset *pfdset, int fd, fd_modify_cb cpl_cb)
 		pfdset->rwfds[i].revents = 0;
 		pfdset->num--;
 		cpl_cb(fd, 0, pfdset->fds[i].ctx);
-		break;
+		return;
 	}
 
-	if (i == pfdset->num)
-		cpl_cb(fd, -ENOENT, NULL);
+	cpl_cb(fd, -ENOENT, NULL);
 }
 
 static void
@@ -184,7 +183,7 @@ _fdset_event_dispatch(void *arg)
 				pfdentry->wcb(pfdentry->fd, pfdentry->ctx);
 
 		}
-	} while (polled_fds_num > 1); /* there's always at least our pipe */
+	} while (polled_fds_num > 0); /* there's always at least our pipe */
 
 	close(pfdset->u.readfd);
 	close(pfdset->u.writefd);

@@ -126,12 +126,6 @@ vhost_dev_ops_complete(struct vhost_dev *vdev, int rc)
 }
 
 static void
-_stop_vq(struct vhost_vq *vq)
-{
-	vq->started = false;
-}
-
-static void
 _msg_handler_stop_all_vqs_cpl(struct vhost_dev *vdev, int rc, void *ctx)
 {
 	struct vhost_vq *vq = ctx;
@@ -143,7 +137,7 @@ _msg_handler_stop_all_vqs_cpl(struct vhost_dev *vdev, int rc, void *ctx)
 		return;
 	}
 
-	_stop_vq(vq);
+	vq->started = false;
 	/* Stop the next one. */
 	_msg_handler_stop_all_vqs(vdev);
 }
@@ -161,7 +155,7 @@ _msg_handler_stop_all_vqs(struct vhost_dev *vdev)
 			continue;
 
 		if (!vdev->ops->queue_stop) {
-			_stop_vq(vq);
+			vq->started = false;
 			continue;
 		}
 
@@ -193,7 +187,7 @@ _msg_handler_stop_vq_cpl(struct vhost_dev *vdev, int rc, void *ctx)
 		return;
 	}
 
-	_stop_vq(vq);
+	vq->started = false;
 	_handle_msg(vdev);
 }
 
@@ -268,7 +262,6 @@ _start_all_vqs_cpl(struct vhost_dev *vdev, int rc, void *ctx)
 	}
 
 	if (vq->idx == UINT16_MAX) {
-		assert(vdev->op_pending_cnt == 0);
 		vdev->dev_ops->msg_cpl(vdev, vdev->msg_ret, vdev->msg);
 	}
 
@@ -298,7 +291,6 @@ start_all_vqs(struct vhost_dev *vdev, uint16_t starting_idx)
 		return;
 	}
 
-	assert(vdev->op_pending_cnt == 0);
 	vdev->dev_ops->msg_cpl(vdev, vdev->msg_ret, vdev->msg);
 }
 
@@ -463,6 +455,9 @@ send_vhost_reply(struct vhost_dev *vdev, struct vhost_user_msg *msg)
 static void
 complete_msg(struct vhost_dev *vdev, int ret)
 {
+	if (ret) {
+		printf("t\n");
+	}
 	vdev->msg_ret = ret;
 	start_all_vqs(vdev, 0);
 }
@@ -478,7 +473,9 @@ static void
 _handle_msg(struct vhost_dev *vdev)
 {
 	struct vhost_user_msg *msg = vdev->msg;
-	int ret = 0;
+	struct vhost_vq *vq;
+	struct vhost_vring_file file;
+	int ret;
 
 	if (vdev->dev_ops->handle_msg) {
 		ret = vdev->dev_ops->handle_msg(vdev, msg);
@@ -487,6 +484,8 @@ _handle_msg(struct vhost_dev *vdev)
 			return;
 		}
 	}
+
+	ret = 0;
 
 	switch (msg->type) {
 	case VHOST_USER_GET_FEATURES:

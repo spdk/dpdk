@@ -242,7 +242,8 @@ _vhost_user_free_vsocket(struct vhost_user_socket *vsocket)
 	free(vsocket->path);
 	free(vsocket);
 
-	del_cb_fn(del_cb_ctx);
+	if (del_cb_fn)
+		del_cb_fn(del_cb_ctx);
 }
 
 static void
@@ -292,7 +293,7 @@ vhost_user_destroy_connection(struct vhost_user_connection *conn)
 static void vhost_user_read_cb(int connfd __rte_unused, void *ctx);
 static int vhost_user_handle_msg(struct vhost_dev *vdev,
 		struct vhost_user_msg *msg);
-static void vhost_user_msg_cpl(struct vhost_dev *vdev,
+static void vhost_user_msg_cpl(struct vhost_dev *vdev, int rc,
 		struct vhost_user_msg *msg);
 
 static void
@@ -477,6 +478,8 @@ vhost_user_tgt_register(const char *path, uint64_t flags,
 	int rc;
 	struct vhost_user_socket *vsocket;
 
+	fdset_init(&vhost_user.fdset);
+
 	vsocket = calloc(1, sizeof(struct vhost_user_socket));
 	if (!vsocket) {
 		RTE_LOG(ERR, VHOST_CONFIG, "calloc failed\n");
@@ -505,6 +508,8 @@ vhost_user_tgt_register(const char *path, uint64_t flags,
 
 	rc = vhost_user_start_server(vsocket);
 	if (rc) {
+		TAILQ_REMOVE(&vhost_user.vsockets, vsocket, tailq);
+		close(vsocket->socket_fd);
 		free(vsocket->path);
 		free(vsocket);
 	}
@@ -841,10 +846,12 @@ vhost_user_send_reply(struct vhost_dev *vdev, struct vhost_user_msg *msg)
 {
 	struct vhost_user_connection *conn = container_of(vdev,
 			struct vhost_user_connection, vdev);
+	int ret;
 
-	return send_fd_message(conn->fd, (char *)msg,
+	ret = send_fd_message(conn->fd, (char *)msg,
 			offsetof(struct vhost_user_msg, payload.u64)
 			+ msg->size, NULL, 0);
+	return ret >= 0 ? 0 : -errno;
 }
 
 static void
