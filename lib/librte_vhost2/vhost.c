@@ -267,10 +267,13 @@ _start_all_vqs_cpl(struct vhost_dev *vdev, int rc, void *ctx)
 		return;
 	}
 
-	if (vq->idx < UINT16_MAX) {
-		/* Start the next queue. */
-		start_all_vqs(vdev, vq->idx + 1);
+	if (vq->idx == UINT16_MAX) {
+		assert(vdev->op_pending_cnt == 0);
+		vdev->dev_ops->msg_cpl(vdev, vdev->msg_ret, vdev->msg);
 	}
+
+	/* Start the next queue. */
+	start_all_vqs(vdev, vq->idx + 1);
 }
 
 static void
@@ -294,6 +297,9 @@ start_all_vqs(struct vhost_dev *vdev, uint16_t starting_idx)
 		vdev->ops->queue_start(&vdev->dev, &vq->q);
 		return;
 	}
+
+	assert(vdev->op_pending_cnt == 0);
+	vdev->dev_ops->msg_cpl(vdev, vdev->msg_ret, vdev->msg);
 }
 
 static void
@@ -454,46 +460,63 @@ send_vhost_reply(struct vhost_dev *vdev, struct vhost_user_msg *msg)
 	return vdev->dev_ops->send_reply(vdev, msg);
 }
 
-static int
-_process_msg(struct vhost_dev *vdev)
+static void
+complete_msg(struct vhost_dev *vdev, int ret)
+{
+	vdev->msg_ret = ret;
+	start_all_vqs(vdev, 0);
+}
+
+static void
+_feature_changed_op_cpl(struct vhost_dev *vdev, int rc,
+		void *ctx __rte_unused)
+{
+	complete_msg(vdev, rc);
+}
+
+static void
+_handle_msg(struct vhost_dev *vdev)
 {
 	struct vhost_user_msg *msg = vdev->msg;
-	struct vhost_vq *vq;
-	struct vhost_vring_file file;
+	int ret = 0;
+
+	if (vdev->dev_ops->handle_msg) {
+		ret = vdev->dev_ops->handle_msg(vdev, msg);
+		if (ret < 0) {
+			complete_msg(vdev, ret);
+			return;
+		}
+	}
 
 	switch (msg->type) {
 	case VHOST_USER_GET_FEATURES:
 		msg->payload.u64 = vdev->supported_features;
 		msg->size = sizeof(msg->payload.u64);
-		return send_vhost_reply(vdev, msg);
+		ret = send_vhost_reply(vdev, msg);
+		break;
 
 	case VHOST_USER_SET_FEATURES:
 		if (msg->payload.u64 & ~vdev->supported_features) {
 			RTE_LOG(ERR, VHOST_CONFIG,
 				"received invalid negotiated features.\n");
-			return -1;
+			ret = -1;
+			break;
 		}
 
 		vdev->features = msg->payload.u64;
-
-		if (vdev->ops->device_features_changed) {
-			vhost_dev_set_ops_cb(vdev, NULL, NULL);
-			vdev->ops->device_features_changed(&vdev->dev,
-				vdev->features);
-		}
-		return 0;
+		break;
 
 	case VHOST_USER_SET_OWNER:
 		/* FIXME */
-		return 0;
+		break;
 
 	case VHOST_USER_RESET_OWNER:
 		/* FIXME */
-		return 0;
+		break;
 
 	case VHOST_USER_SET_MEM_TABLE:
 		/* mem table is managed by the transport layer */
-		return 0;
+		break;
 
 	case VHOST_USER_SET_VRING_NUM:
 		vq = vdev->vq[msg->payload.state.index];
@@ -507,24 +530,25 @@ _process_msg(struct vhost_dev *vdev)
 		if ((vq->q.size & (vq->q.size - 1)) || vq->q.size > 32768) {
 			RTE_LOG(ERR, VHOST_CONFIG,
 				"invalid virtqueue size %u\n", vq->q.size);
-			return -1;
+			ret = -1;
 		}
-		return 0;
+		break;
 
 	case VHOST_USER_SET_VRING_ADDR:
-		if (vdev->dev.mem == NULL)
-			return -1;
+		if (vdev->dev.mem == NULL) {
+			ret = -1;
+			break;
+		}
 
 		vq = vdev->vq[msg->payload.addr.index];
 		translate_ring_addresses(vdev, vq, msg);
-		return 0;
+		break;
 
 	case VHOST_USER_SET_VRING_BASE:
 		vq = vdev->vq[msg->payload.state.index];
 		vq->q.last_used_idx = msg->payload.state.num;
 		vq->q.last_avail_idx = msg->payload.state.num;
-
-		return 0;
+		break;
 
 	case VHOST_USER_GET_VRING_BASE:
 		vq = vdev->vq[msg->payload.state.index];
@@ -541,7 +565,8 @@ _process_msg(struct vhost_dev *vdev)
 		vq->kicked = false;
 
 		msg->size = sizeof(msg->payload.state);
-		return send_vhost_reply(vdev, msg);
+		ret = send_vhost_reply(vdev, msg);
+		break;
 
 	case VHOST_USER_SET_VRING_KICK:
 		file.index = msg->payload.u64 & VHOST_USER_VRING_IDX_MASK;
@@ -564,7 +589,7 @@ _process_msg(struct vhost_dev *vdev)
 				(1ULL << VHOST_USER_F_PROTOCOL_FEATURES)) == 0)
 			vq->q.state = VHOST_VQ_ENABLED;
 
-		return 0;
+		break;
 
 	case VHOST_USER_SET_VRING_CALL:
 		file.index = msg->payload.u64 & VHOST_USER_VRING_IDX_MASK;
@@ -581,18 +606,20 @@ _process_msg(struct vhost_dev *vdev)
 			close(vq->callfd);
 
 		vq->callfd = file.fd;
-		return 0;
+		break;
 
 	case VHOST_USER_SET_VRING_ERR:
 		if (!(msg->payload.u64 & VHOST_USER_VRING_NOFD_MASK))
 			close(msg->fds[0]);
 		RTE_LOG(INFO, VHOST_CONFIG, "not implemented\n");
-		return 0;
+		break;
 
 	case VHOST_USER_GET_PROTOCOL_FEATURES:
-		if ((vdev->features &
-				(1ULL << VHOST_USER_F_PROTOCOL_FEATURES)) == 0)
-			return -1;
+		if (!(vdev->features &
+				(1ULL << VHOST_USER_F_PROTOCOL_FEATURES))) {
+			ret = -1;
+			break;
+		}
 
 		msg->payload.u64 = SUPPORTED_PROTOCOL_FEATURES;
 
@@ -610,30 +637,37 @@ _process_msg(struct vhost_dev *vdev)
 			msg->payload.u64 &=
 				~(1ULL << VHOST_USER_PROTOCOL_F_CONFIG);
 
-		return send_vhost_reply(vdev, msg);
+		ret = send_vhost_reply(vdev, msg);
+		break;
 
 	case VHOST_USER_SET_PROTOCOL_FEATURES:
-		if ((vdev->features &
-				(1ULL << VHOST_USER_F_PROTOCOL_FEATURES)) == 0)
-			return -1;
+		if (!(vdev->features &
+				(1ULL << VHOST_USER_F_PROTOCOL_FEATURES))) {
+			ret = -1;
+			break;
+		}
 
 		vdev->protocol_features = msg->payload.u64;
 		if (msg->payload.u64 & ~SUPPORTED_PROTOCOL_FEATURES) {
 			RTE_LOG(ERR, VHOST_CONFIG,
 				"received invalid negotiated protocol features.\n");
-			return -1;
+			ret = -1;
+			break;
 		}
-		return 0;
+		break;
 
 	case VHOST_USER_GET_QUEUE_NUM:
 		msg->payload.u64 = (uint64_t)VHOST_MAX_VIRTQUEUES;
 		msg->size = sizeof(msg->payload.u64);
-		return send_vhost_reply(vdev, msg);
+		ret = send_vhost_reply(vdev, msg);
+		break;
 
 	case VHOST_USER_SET_VRING_ENABLE:
-		if ((vdev->features &
-				(1ULL << VHOST_USER_F_PROTOCOL_FEATURES)) == 0)
-			return -1;
+		if (!(vdev->features &
+				(1ULL << VHOST_USER_F_PROTOCOL_FEATURES))) {
+			ret = -1;
+			break;
+		}
 
 		vq = vdev->vq[msg->payload.state.index];
 		if (msg->payload.state.num & 1)
@@ -641,15 +675,20 @@ _process_msg(struct vhost_dev *vdev)
 		else
 			vq->q.state = VHOST_VQ_DISABLED;
 
-		return 0;
+		break;
 
 	case VHOST_USER_GET_CONFIG:
-		if ((vdev->protocol_features &
-				(1ULL << VHOST_USER_PROTOCOL_F_CONFIG)) == 0)
-				return -1;
+		if (!(vdev->protocol_features &
+				(1ULL << VHOST_USER_PROTOCOL_F_CONFIG))) {
+				ret = -1;
+				break;
+		}
 
-		if (msg->payload.config.size > VHOST_USER_MAX_CONFIG_SIZE)
-			return -1;
+		if (msg->payload.config.size > VHOST_USER_MAX_CONFIG_SIZE) {
+			ret = -1;
+			break;
+		}
+
 
 		if (vdev->ops->get_config(&vdev->dev,
 				msg->payload.config.region,
@@ -658,52 +697,40 @@ _process_msg(struct vhost_dev *vdev)
 			msg->size = 0;
 		}
 
-		return send_vhost_reply(vdev, msg);
+		ret = send_vhost_reply(vdev, msg);
+		break;
 
 	case VHOST_USER_SET_CONFIG:
-		if ((vdev->protocol_features &
-				(1ULL << VHOST_USER_PROTOCOL_F_CONFIG)) == 0)
-				return -1;
+		if (!(vdev->protocol_features &
+				(1ULL << VHOST_USER_PROTOCOL_F_CONFIG))) {
+				ret = -1;
+				break;
+		}
 
-		if (msg->payload.config.size > VHOST_USER_MAX_CONFIG_SIZE)
-			return -1;
+		if (msg->payload.config.size > VHOST_USER_MAX_CONFIG_SIZE) {
+			ret = -1;
+			break;
+		}
 
-		return vdev->ops->set_config(&vdev->dev,
+		ret = vdev->ops->set_config(&vdev->dev,
 				msg->payload.config.region,
 				msg->payload.config.offset,
 				msg->payload.config.size,
 				msg->payload.config.flags);
+		break;
 
 	case VHOST_USER_SET_SLAVE_REQ_FD:
 		/* managed by the transport layer */
-		return 0;
+		break;
 
 	default:
-		/* FIXME */
-		abort();
+		ret = -1;
+		break;
 	}
 
-	return -1;
-}
-
-static void
-_handle_msg(struct vhost_dev *vdev)
-{
-	struct vhost_user_msg *msg = vdev->msg;
-	int ret = 0;
-
-	if (vdev->dev_ops->handle_msg) {
-		ret = vdev->dev_ops->handle_msg(vdev, msg);
-		if (ret < 0) {
-			/* FIXME */
-			abort();
-		}
-	}
-
-	ret = _process_msg(vdev);
-	if (ret) {
-		/* FIXME */
-		abort();
+	if (ret < 0) {
+		complete_msg(vdev, ret);
+		return;
 	}
 
 	/* messages that already sent a reply won't have the
@@ -716,20 +743,35 @@ _handle_msg(struct vhost_dev *vdev)
 		msg->size = sizeof(msg->payload.u64);
 		ret = send_vhost_reply(vdev, msg);
 		if (ret) {
-			RTE_LOG(ERR, VHOST_CONFIG, "failed to send reply\n");
+			RTE_LOG(ERR, VHOST_CONFIG,
+				"failed to send reply\n");
+			complete_msg(vdev, ret);
 			return;
 		}
 	}
 
-	if (vdev->dev_ops->msg_cpl)
-		vdev->dev_ops->msg_cpl(vdev, msg);
+	switch (msg->type) {
+	case VHOST_USER_SET_FEATURES:
+		if (vdev->ops->device_features_changed) {
+			vhost_dev_set_ops_cb(vdev,
+				_feature_changed_op_cpl, NULL);
+			vdev->ops->device_features_changed(&vdev->dev,
+				vdev->features);
+			return;
+		}
+		break;
+	default:
+		break;
+	}
 
-	start_all_vqs(vdev, 0);
+	complete_msg(vdev, ret);
 }
 
 int
 vhost_dev_msg_handler(struct vhost_dev *vdev, struct vhost_user_msg *msg)
 {
+	assert(vdev->op_pending_cnt == 0);
+
 	if (msg->type >= VHOST_USER_MAX)
 		return -1;
 

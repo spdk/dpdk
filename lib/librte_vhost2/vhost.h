@@ -162,7 +162,7 @@ typedef void (*vhost_dev_ops_cb)(struct vhost_dev *vdev,
 
 struct vhost_dev_ops {
 	int (*handle_msg)(struct vhost_dev *vdev, struct vhost_user_msg *msg);
-	void (*msg_cpl)(struct vhost_dev *vdev, struct vhost_user_msg *msg);
+	void (*msg_cpl)(struct vhost_dev *vdev, int rc, struct vhost_user_msg *msg);
 	int (*send_reply)(struct vhost_dev *vdev, struct vhost_user_msg *msg);
 };
 
@@ -193,6 +193,7 @@ struct vhost_dev {
 
 	/* currently handled msg */
 	struct vhost_user_msg *msg;
+	int msg_ret;
 
 	unsigned op_pending_cnt;
 	vhost_dev_ops_cb op_cpl_fn;
