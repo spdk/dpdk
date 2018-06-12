@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "06ccb479_b413b806",
+        "filename": "lib/librte_vhost2/vhost.c",
+        "patchSetId": 7
+      },
+      "lineNbr": 366,
+      "author": {
+        "id": 1011218
+      },
+      "writtenOn": "2018-06-12T10:17:04Z",
+      "side": 1,
+      "message": "this is missing support for F_EVENT_INDEX\nshould be implemented like here: https://review.gerrithub.io/c/spdk/spdk/+/377570/11/lib/vhost/rte_vhost/vhost_user.c",
+      "revId": "464eeda2a005979c536a8fa739fc0b39ca34b953",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": true
+    }
+  ]
+}
