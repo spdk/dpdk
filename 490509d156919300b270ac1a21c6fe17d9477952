@@ -1,0 +1,119 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "62fbf8b8_94b78e14",
+        "filename": "lib/librte_vhost2/fd_man.c",
+        "patchSetId": 8
+      },
+      "lineNbr": 34,
+      "author": {
+        "id": 1011230
+      },
+      "writtenOn": "2018-06-12T14:20:18Z",
+      "side": 1,
+      "message": "You can remove \u0027data\u0027 and put all fields directly in \u0027struct fdset_event\u0027",
+      "range": {
+        "startLine": 34,
+        "startChar": 1,
+        "endLine": 34,
+        "endChar": 8
+      },
+      "revId": "490509d156919300b270ac1a21c6fe17d9477952",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "9df7e49e_030f4ae1",
+        "filename": "lib/librte_vhost2/fd_man.c",
+        "patchSetId": 8
+      },
+      "lineNbr": 172,
+      "author": {
+        "id": 1011230
+      },
+      "writtenOn": "2018-06-12T14:20:18Z",
+      "side": 1,
+      "message": "assert(rc \u003d\u003d 0) ?",
+      "range": {
+        "startLine": 171,
+        "startChar": 1,
+        "endLine": 172,
+        "endChar": 16
+      },
+      "revId": "490509d156919300b270ac1a21c6fe17d9477952",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "bba968e2_4f3b09c2",
+        "filename": "lib/librte_vhost2/fd_man.c",
+        "patchSetId": 8
+      },
+      "lineNbr": 233,
+      "author": {
+        "id": 1011230
+      },
+      "writtenOn": "2018-06-12T14:20:18Z",
+      "side": 1,
+      "message": "You could handle EINTR here.",
+      "range": {
+        "startLine": 232,
+        "startChar": 0,
+        "endLine": 233,
+        "endChar": 16
+      },
+      "revId": "490509d156919300b270ac1a21c6fe17d9477952",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "8d6c1fd1_dbef3749",
+        "filename": "lib/librte_vhost2/fd_man.c",
+        "patchSetId": 8
+      },
+      "lineNbr": 256,
+      "author": {
+        "id": 1011230
+      },
+      "writtenOn": "2018-06-12T14:20:18Z",
+      "side": 1,
+      "message": "You could handle EINTR here.",
+      "range": {
+        "startLine": 255,
+        "startChar": 0,
+        "endLine": 256,
+        "endChar": 16
+      },
+      "revId": "490509d156919300b270ac1a21c6fe17d9477952",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "afd9286f_93f155fd",
+        "filename": "lib/librte_vhost2/fd_man.c",
+        "patchSetId": 8
+      },
+      "lineNbr": 276,
+      "author": {
+        "id": 1011230
+      },
+      "writtenOn": "2018-06-12T14:20:18Z",
+      "side": 1,
+      "message": "and here.",
+      "range": {
+        "startLine": 274,
+        "startChar": 0,
+        "endLine": 276,
+        "endChar": 16
+      },
+      "revId": "490509d156919300b270ac1a21c6fe17d9477952",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    }
+  ]
+}
