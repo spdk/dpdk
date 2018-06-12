@@ -23,6 +23,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <assert.h>
+#ifdef RTE_LIBRTE_VHOST_NUMA
+#include <numaif.h>
+#endif
 
 #include <rte_malloc.h>
 #include <rte_log.h>
@@ -378,10 +381,48 @@ ring_addr_to_vva(struct vhost_dev *vdev, struct vhost_vq *vq,
 	return uva_to_vva(vdev, ra, size);
 }
 
+#ifdef RTE_LIBRTE_VHOST_NUMA
 static int
-translate_ring_addresses(struct vhost_dev *dev, struct vhost_vq *vq,
+numa_vq_realloc(struct vhost_vq **vq_p)
+{
+	int oldnode, newnode;
+	struct vhost_vq *old_vq, *new_vq;
+	int ret;
+
+	old_vq = *vq_p;
+
+	ret = get_mempolicy(&newnode, NULL, 0, old_vq->q.vring.desc,
+			    MPOL_F_NODE | MPOL_F_ADDR);
+
+	/* check if we need to reallocate vq */
+	ret |= get_mempolicy(&oldnode, NULL, 0, old_vq,
+			     MPOL_F_NODE | MPOL_F_ADDR);
+	if (ret) {
+		RTE_LOG(ERR, VHOST_CONFIG,
+			"Unable to get vq numa information.\n");
+		return -errno;
+	}
+
+	if (oldnode == newnode)
+		return 0;
+
+	new_vq = rte_zmalloc_socket(NULL, sizeof(*old_vq), 0, newnode);
+	if (new_vq == NULL)
+		return -ENOMEM;
+
+	memcpy(new_vq, old_vq, sizeof(*old_vq));
+	rte_free(old_vq);
+
+	*vq_p = new_vq;
+	return 0;
+}
+#endif
+
+static int
+translate_ring_addresses(struct vhost_dev *dev, struct vhost_vq **vq_p,
 		struct vhost_user_msg *msg)
 {
+	struct vhost_vq *vq = *vq_p;
 	struct vhost_vring_addr addr = msg->payload.addr;
 	uint64_t len;
 
@@ -432,6 +473,12 @@ translate_ring_addresses(struct vhost_dev *dev, struct vhost_vq *vq,
 			dev->id, vq->q.vring.used);
 	RTE_LOG(DEBUG, VHOST_CONFIG, "(%d) log_guest_addr: %lu\n",
 			dev->id, vq->q.log_guest_addr);
+
+#ifdef RTE_LIBRTE_VHOST_NUMA
+	if (numa_vq_realloc(vq_p) != 0)
+		RTE_LOG(WARNING, VHOST_CONFIG,
+			"Failed to realloc vq on proper NUMA socket.\n");
+#endif
 
 	return 0;
 }
@@ -562,7 +609,8 @@ _handle_msg(struct vhost_dev *vdev)
 		}
 
 		vq = vdev->vq[msg->payload.addr.index];
-		translate_ring_addresses(vdev, vq, msg);
+		translate_ring_addresses(vdev, &vq, msg);
+		vdev->vq[msg->payload.addr.index] = vq;
 		break;
 
 	case VHOST_USER_SET_VRING_BASE:
