@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "735df34c_50e07900",
+        "filename": "lib/librte_eal/common/eal_common_memory.c",
+        "patchSetId": 2
+      },
+      "lineNbr": 72,
+      "author": {
+        "id": 1011230
+      },
+      "writtenOn": "2018-06-14T08:25:25Z",
+      "side": 1,
+      "message": "I think you don\u0027t need this anymore.",
+      "range": {
+        "startLine": 72,
+        "startChar": 13,
+        "endLine": 72,
+        "endChar": 38
+      },
+      "revId": "0279a885b7498c2c013b89ae9e8e21656211c12e",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    }
+  ]
+}
