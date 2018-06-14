@@ -2,6 +2,29 @@
   "comments": [
     {
       "key": {
+        "uuid": "a3d6dfc9_db872730",
+        "filename": "lib/librte_vhost2/vhost.c",
+        "patchSetId": 7
+      },
+      "lineNbr": 242,
+      "author": {
+        "id": 1011230
+      },
+      "writtenOn": "2018-06-14T10:27:29Z",
+      "side": 1,
+      "message": "This look weird. \nvq-\u003eidx \u003d\u003d UINT16_MAX -\u003e vq-\u003eidx \u003e\u003d VHOST_MAX_VIRTQUEUES ?\n\nAlso I think the for loop in start_all_vqs() is protecting you from any overflow.",
+      "range": {
+        "startLine": 240,
+        "startChar": 0,
+        "endLine": 242,
+        "endChar": 2
+      },
+      "revId": "464eeda2a005979c536a8fa739fc0b39ca34b953",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "06ccb479_b413b806",
         "filename": "lib/librte_vhost2/vhost.c",
         "patchSetId": 7
@@ -16,6 +39,29 @@
       "revId": "464eeda2a005979c536a8fa739fc0b39ca34b953",
       "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
       "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "2b8c250c_2cf393f4",
+        "filename": "lib/librte_vhost2/vhost.h",
+        "patchSetId": 7
+      },
+      "lineNbr": 139,
+      "author": {
+        "id": 1011230
+      },
+      "writtenOn": "2018-06-14T10:27:29Z",
+      "side": 1,
+      "message": "move it after kickfd to avoid padding.",
+      "range": {
+        "startLine": 139,
+        "startChar": 1,
+        "endLine": 139,
+        "endChar": 14
+      },
+      "revId": "464eeda2a005979c536a8fa739fc0b39ca34b953",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
     }
   ]
 }
