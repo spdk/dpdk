@@ -192,6 +192,9 @@ SRCS-y += test_event_timer_adapter.c
 SRCS-y += test_event_crypto_adapter.c
 endif
 
+SRCS-$(CONFIG_RTE_LIBRTE_VHOST) += test_vhost.c
+SRCS-$(CONFIG_RTE_LIBRTE_VHOST) += virtual_vhost.c
+
 ifeq ($(CONFIG_RTE_LIBRTE_RAWDEV),y)
 SRCS-y += test_rawdev.c
 endif
