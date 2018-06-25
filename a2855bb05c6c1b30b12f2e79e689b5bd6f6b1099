@@ -1,0 +1,119 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "8313988e_b384569c",
+        "filename": "test/test/test_vhost.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 87,
+      "author": {
+        "id": 1011218
+      },
+      "writtenOn": "2018-06-25T09:51:40Z",
+      "side": 1,
+      "message": "this should be sent only if the slave negotiates VHOST_USER_F_PROTOCOL_FEATURES (30) feature (via GET_FEATURES - that\u0027s why this message needs to be first)",
+      "range": {
+        "startLine": 87,
+        "startChar": 22,
+        "endLine": 87,
+        "endChar": 54
+      },
+      "revId": "a2855bb05c6c1b30b12f2e79e689b5bd6f6b1099",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "d9a2ff16_6874ed5c",
+        "filename": "test/test/test_vhost.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 98,
+      "author": {
+        "id": 1011218
+      },
+      "writtenOn": "2018-06-25T09:51:40Z",
+      "side": 1,
+      "message": "^",
+      "range": {
+        "startLine": 98,
+        "startChar": 22,
+        "endLine": 98,
+        "endChar": 54
+      },
+      "revId": "a2855bb05c6c1b30b12f2e79e689b5bd6f6b1099",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "6710f499_6db8e511",
+        "filename": "test/test/test_vhost.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 192,
+      "author": {
+        "id": 1011218
+      },
+      "writtenOn": "2018-06-25T09:51:40Z",
+      "side": 1,
+      "message": "this should be sent only if the slave negotiates VHOST_USER_F_PROTOCOL_FEATURES (30) feature",
+      "range": {
+        "startLine": 192,
+        "startChar": 22,
+        "endLine": 192,
+        "endChar": 49
+      },
+      "revId": "a2855bb05c6c1b30b12f2e79e689b5bd6f6b1099",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "505dcd32_011f5df5",
+        "filename": "test/test/virtual_vhost.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 25,
+      "author": {
+        "id": 1011218
+      },
+      "writtenOn": "2018-06-25T09:51:40Z",
+      "side": 1,
+      "message": "\"virtual vhost\" isn\u0027t a proper name for this.\nHow about \"virtual master\"? It follows the vhost-user terminology, in which Master is the communication side which offers its virtqueues.",
+      "range": {
+        "startLine": 25,
+        "startChar": 7,
+        "endLine": 25,
+        "endChar": 21
+      },
+      "revId": "a2855bb05c6c1b30b12f2e79e689b5bd6f6b1099",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "f49baef7_2178676e",
+        "filename": "test/test/virtual_vhost.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 138,
+      "author": {
+        "id": 1011218
+      },
+      "writtenOn": "2018-06-25T09:51:40Z",
+      "side": 1,
+      "message": "these two does not seem to be used. Do we need them?",
+      "range": {
+        "startLine": 120,
+        "startChar": 0,
+        "endLine": 138,
+        "endChar": 1
+      },
+      "revId": "a2855bb05c6c1b30b12f2e79e689b5bd6f6b1099",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": true
+    }
+  ]
+}
