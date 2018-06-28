@@ -151,10 +151,10 @@ static uint16_t bnxt_start_xmit(struct rte_mbuf *tx_pkt,
 	txbd->opaque = txr->tx_prod;
 	txbd->flags_type = tx_buf->nr_bds << TX_BD_LONG_FLAGS_BD_CNT_SFT;
 	txbd->len = tx_pkt->data_len;
-	if (txbd->len >= 2014)
+	if (tx_pkt->pkt_len >= 2014)
 		txbd->flags_type |= TX_BD_LONG_FLAGS_LHINT_GTE2K;
 	else
-		txbd->flags_type |= lhint_arr[txbd->len >> 9];
+		txbd->flags_type |= lhint_arr[tx_pkt->pkt_len >> 9];
 	txbd->address = rte_cpu_to_le_32(rte_mbuf_data_iova(tx_buf->mbuf));
 
 	if (long_bd) {
