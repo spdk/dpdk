@@ -344,7 +344,13 @@ rte_vfio_setup_device(const char *sysfs_base, const char *dev_addr,
 				rte_vfio_clear_group(vfio_group_fd);
 				return -1;
 			}
-			ret = t->dma_map_func(vfio_cfg.vfio_container_fd);
+
+			if (internal_config.single_file_segments == 0) {
+				ret = t->dma_map_func(vfio_cfg.vfio_container_fd);
+			} else {
+				/* mappings not managed by DPDK */
+				ret = 0;
+			}
 			if (ret) {
 				RTE_LOG(ERR, EAL,
 					"  %s DMA remapping failed, error %i (%s)\n",
