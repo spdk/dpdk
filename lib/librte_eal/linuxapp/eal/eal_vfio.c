@@ -730,7 +730,9 @@ rte_vfio_setup_device(const char *sysfs_base, const char *dev_addr,
 			 * after registering callback, to prevent races
 			 */
 			rte_rwlock_read_lock(mem_lock);
-			if (vfio_cfg == default_vfio_cfg)
+			if (vfio_cfg == default_vfio_cfg &&
+					(internal_config.single_file_segments == 0 ||
+					internal_config.legacy_mem = 0))
 				ret = t->dma_map_func(vfio_container_fd);
 			else
 				ret = 0;
