@@ -332,7 +332,8 @@ rte_vfio_setup_device(const char *sysfs_base, const char *dev_addr,
 		 * functionality.
 		 */
 		if (internal_config.process_type == RTE_PROC_PRIMARY &&
-				vfio_cfg.vfio_active_groups == 1) {
+				vfio_cfg.vfio_active_groups == 1 &&
+				internal_config.single_file_segments == 0) {
 			/* select an IOMMU type which we will be using */
 			const struct vfio_iommu_type *t =
 				vfio_set_iommu_type(vfio_cfg.vfio_container_fd);
