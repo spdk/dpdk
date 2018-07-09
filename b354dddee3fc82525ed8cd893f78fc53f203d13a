@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "70f2f56c_4d2ab7fd",
+        "filename": "drivers/crypto/aesni_mb/rte_aesni_mb_pmd.c",
+        "patchSetId": 2
+      },
+      "lineNbr": 583,
+      "author": {
+        "id": 1010525
+      },
+      "writtenOn": "2018-07-09T20:12:14Z",
+      "side": 0,
+      "message": "I think this job-\u003esrc assignment should be outside of the #ifdef (it is needed in both paths).",
+      "revId": "b354dddee3fc82525ed8cd893f78fc53f203d13a",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    }
+  ]
+}
