@@ -751,11 +751,18 @@ get_session(struct aesni_mb_qp *qp, struct rte_crypto_op *op)
  * - Completed JOB_AES_HMAC structure pointer on success
  * - NULL pointer if completion of JOB_AES_HMAC structure isn't possible
  */
+#define SPDK_CRYPTO_HACK
 static inline int
 set_mb_job_params(JOB_AES_HMAC *job, struct aesni_mb_qp *qp,
 		struct rte_crypto_op *op, uint8_t *digest_idx)
 {
+#ifdef SPDK_CRYPTO_HACK
+	struct rte_mbuf *m_src = op->sym->m_src;
+	struct rte_mbuf *m_dst = op->sym->m_dst;
+#else
 	struct rte_mbuf *m_src = op->sym->m_src, *m_dst;
+#endif
+
 	struct aesni_mb_session *session;
 	uint16_t m_offset = 0;
 
@@ -840,6 +847,12 @@ set_mb_job_params(JOB_AES_HMAC *job, struct aesni_mb_qp *qp,
 		}
 	}
 
+#ifdef SPDK_CRYPTO_HACK
+        if (!op->sym->m_dst) {
+                m_dst = m_src;
+        }
+        m_offset = op->sym->cipher.data.offset;
+#else
 	/* Mutable crypto operation parameters */
 	if (op->sym->m_dst) {
 		m_src = m_dst = op->sym->m_dst;
@@ -864,6 +877,7 @@ set_mb_job_params(JOB_AES_HMAC *job, struct aesni_mb_qp *qp,
 		else
 			m_offset = op->sym->cipher.data.offset;
 	}
+#endif
 
 	/* Set digest output location */
 	if (job->hash_alg != NULL_HASH &&
@@ -895,7 +909,16 @@ set_mb_job_params(JOB_AES_HMAC *job, struct aesni_mb_qp *qp,
 
 	/* Data  Parameter */
 	job->src = rte_pktmbuf_mtod(m_src, uint8_t *);
+
+#ifdef SPDK_CRYPTO_HACK
+        if (!op->sym->m_dst) {
+                job->dst = rte_pktmbuf_mtod_offset(m_dst, uint8_t *, m_offset);
+        } else {
+                job->dst = rte_pktmbuf_mtod(m_dst, uint8_t *);
+        }
+#else
 	job->dst = rte_pktmbuf_mtod_offset(m_dst, uint8_t *, m_offset);
+#endif
 
 	switch (job->hash_alg) {
 	case AES_CCM:
