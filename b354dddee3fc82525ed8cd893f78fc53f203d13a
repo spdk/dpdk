@@ -16,6 +16,24 @@
       "revId": "b354dddee3fc82525ed8cd893f78fc53f203d13a",
       "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
       "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "59020489_3a286470",
+        "filename": "drivers/crypto/aesni_mb/rte_aesni_mb_pmd.c",
+        "patchSetId": 2
+      },
+      "lineNbr": 583,
+      "author": {
+        "id": 1011289
+      },
+      "writtenOn": "2018-07-10T00:44:36Z",
+      "side": 0,
+      "message": "yeah, thanks I noticed that too when I looked at the diff, grabbed one too many lines in the c-n-paste.  Will update but just FYI this change set is not what we\u0027d propose to DPDK upstream, this the name of the #define \"SPDK hack\".  The upstream changes would involve chasing a bunch of other macros that are used with other drivers as well - they didn\u0027t specify which but they wanted to ensure consistency between all the drivers.  SPDK crypto bdev will only support this and QAT so more generic changes simply aren\u0027t required for us in the temp timeframe.",
+      "parentUuid": "70f2f56c_4d2ab7fd",
+      "revId": "b354dddee3fc82525ed8cd893f78fc53f203d13a",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
     }
   ]
 }
