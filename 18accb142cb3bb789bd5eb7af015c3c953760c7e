@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "4bc0b3e6_628e0c22",
+        "filename": "lib/librte_vhost2/rte_vhost2.h",
+        "patchSetId": 9
+      },
+      "lineNbr": 144,
+      "author": {
+        "id": 1011204
+      },
+      "writtenOn": "2018-07-11T08:14:50Z",
+      "side": 1,
+      "message": "I think here we should pass whole socket messages to backend, users may have their own socket messages handler, from my idea, then vhost-nvme can also use this library without any new message code or callback.",
+      "revId": "18accb142cb3bb789bd5eb7af015c3c953760c7e",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    }
+  ]
+}
