@@ -497,7 +497,7 @@ RTE_INIT(isal_init_log);
 static void
 isal_init_log(void)
 {
-	isal_logtype_driver = rte_log_register("comp_isal");
+	isal_logtype_driver = rte_log_register("pmd.compress.isal");
 	if (isal_logtype_driver >= 0)
 		rte_log_set_level(isal_logtype_driver, RTE_LOG_INFO);
 }
