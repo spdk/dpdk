@@ -16,6 +16,40 @@
       "revId": "18accb142cb3bb789bd5eb7af015c3c953760c7e",
       "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
       "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "ac9b6ffd_21027840",
+        "filename": "lib/librte_vhost2/transport.h",
+        "patchSetId": 9
+      },
+      "lineNbr": 10,
+      "author": {
+        "id": 1011204
+      },
+      "writtenOn": "2018-07-11T08:25:36Z",
+      "side": 1,
+      "message": "Since you set the file name transport.h, can we just rename it struct transport_ops, then in the vhost.c file, you can define vhost_transport_ops for *vhost* transport usage.",
+      "revId": "18accb142cb3bb789bd5eb7af015c3c953760c7e",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "186ea8f3_87eb3efd",
+        "filename": "lib/librte_vhost2/transport.h",
+        "patchSetId": 9
+      },
+      "lineNbr": 23,
+      "author": {
+        "id": 1011204
+      },
+      "writtenOn": "2018-07-11T08:25:36Z",
+      "side": 1,
+      "message": "same here.",
+      "revId": "18accb142cb3bb789bd5eb7af015c3c953760c7e",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
     }
   ]
 }
