@@ -470,8 +470,8 @@ CONFIG_RTE_LIBRTE_PMD_BBDEV_TURBO_SW=n
 #
 # Compile generic crypto device library
 #
-CONFIG_RTE_LIBRTE_CRYPTODEV=n
-CONFIG_RTE_CRYPTO_MAX_DEVS=64
+#CONFIG_RTE_LIBRTE_CRYPTODEV=n
+#CONFIG_RTE_CRYPTO_MAX_DEVS=64
 
 #
 # Compile PMD for ARMv8 Crypto device
@@ -493,8 +493,8 @@ CONFIG_RTE_LIBRTE_DPAA_MAX_CRYPTODEV=4
 #
 # Compile PMD for QuickAssist based devices - see docs for details
 #
-CONFIG_RTE_LIBRTE_PMD_QAT=n
-CONFIG_RTE_LIBRTE_PMD_QAT_SYM=n
+#CONFIG_RTE_LIBRTE_PMD_QAT=y
+#CONFIG_RTE_LIBRTE_PMD_QAT_SYM=n
 #
 # Max. number of QuickAssist devices, which can be detected and attached
 #
@@ -513,7 +513,7 @@ CONFIG_RTE_MAX_VIRTIO_CRYPTO=32
 #
 # Compile PMD for AESNI backed device
 #
-CONFIG_RTE_LIBRTE_PMD_AESNI_MB=n
+#CONFIG_RTE_LIBRTE_PMD_AESNI_MB=n
 
 #
 # Compile PMD for Software backed device
@@ -817,7 +817,7 @@ CONFIG_RTE_LIBRTE_DISTRIBUTOR=n
 #
 # Compile the reorder library
 #
-CONFIG_RTE_LIBRTE_REORDER=n
+#CONFIG_RTE_LIBRTE_REORDER=n
 
 #
 # Compile librte_port
