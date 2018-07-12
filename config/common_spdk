@@ -101,7 +101,7 @@ CONFIG_RTE_EAL_IGB_UIO=n
 #
 # Compile the argument parser library
 #
-CONFIG_RTE_LIBRTE_KVARGS=n
+#CONFIG_RTE_LIBRTE_KVARGS=n
 
 #
 # Compile generic ethernet library
@@ -441,7 +441,7 @@ CONFIG_RTE_LIBRTE_BBDEV=n
 #
 # Compile generic crypto device library
 #
-CONFIG_RTE_LIBRTE_CRYPTODEV=n
+#CONFIG_RTE_LIBRTE_CRYPTODEV=n
 #CONFIG_RTE_LIBRTE_CRYPTODEV_DEBUG=n
 #CONFIG_RTE_CRYPTO_MAX_DEVS=64
 
@@ -743,7 +743,7 @@ CONFIG_RTE_LIBRTE_DISTRIBUTOR=n
 #
 # Compile the reorder library
 #
-CONFIG_RTE_LIBRTE_REORDER=n
+#CONFIG_RTE_LIBRTE_REORDER=n
 
 #
 # Compile librte_port
