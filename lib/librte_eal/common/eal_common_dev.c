@@ -42,18 +42,6 @@ static struct dev_event_cb_list dev_event_cbs;
 /* spinlock for device callbacks */
 static rte_spinlock_t dev_event_lock = RTE_SPINLOCK_INITIALIZER;
 
-static int cmp_detached_dev_name(const struct rte_device *dev,
-	const void *_name)
-{
-	const char *name = _name;
-
-	/* skip attached devices */
-	if (dev->driver != NULL)
-		return 1;
-
-	return strcmp(dev->name, name);
-}
-
 static int cmp_dev_name(const struct rte_device *dev, const void *_name)
 {
 	const char *name = _name;
@@ -151,12 +139,17 @@ int __rte_experimental rte_eal_hotplug_add(const char *busname, const char *devn
 	if (ret)
 		goto err_devarg;
 
-	dev = bus->find_device(NULL, cmp_detached_dev_name, devname);
+	dev = bus->find_device(NULL, cmp_dev_name, devname);
 	if (dev == NULL) {
-		RTE_LOG(ERR, EAL, "Cannot find unplugged device (%s)\n",
+		RTE_LOG(ERR, EAL, "Cannot find device (%s)\n",
 			devname);
 		ret = -ENODEV;
 		goto err_devarg;
+	}
+
+	if (dev->driver != NULL) {
+		RTE_LOG(ERR, EAL, "Device is already plugged\n");
+		return -EEXIST;
 	}
 
 	ret = bus->plug(dev);
@@ -198,6 +191,11 @@ rte_eal_hotplug_remove(const char *busname, const char *devname)
 	if (dev == NULL) {
 		RTE_LOG(ERR, EAL, "Cannot find plugged device (%s)\n", devname);
 		return -EINVAL;
+	}
+
+	if (dev->driver == NULL) {
+		RTE_LOG(ERR, EAL, "Device is already unplugged\n");
+		return -ENOENT;
 	}
 
 	ret = bus->unplug(dev);
