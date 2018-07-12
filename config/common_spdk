@@ -5,25 +5,25 @@
 # define executive environment
 # RTE_EXEC_ENV values are the directories in mk/exec-env/
 #
-CONFIG_RTE_EXEC_ENV=
+#CONFIG_RTE_EXEC_ENV=
 
 #
 # define the architecture we compile for.
 # RTE_ARCH values are the directories in mk/arch/
 #
-CONFIG_RTE_ARCH=
+#CONFIG_RTE_ARCH=
 
 #
 # machine can define specific variables or action for a specific board
 # RTE_MACHINE values are the directories in mk/machine/
 #
-CONFIG_RTE_MACHINE=
+#CONFIG_RTE_MACHINE=
 
 #
 # The compiler we use.
 # RTE_TOOLCHAIN values are the directories in mk/toolchain/
 #
-CONFIG_RTE_TOOLCHAIN=
+#CONFIG_RTE_TOOLCHAIN=
 
 #
 # Use intrinsics or assembly code for key routines
@@ -85,11 +85,11 @@ CONFIG_RTE_LIBEAL_USE_HPET=n
 CONFIG_RTE_EAL_ALLOW_INV_SOCKET_ID=n
 CONFIG_RTE_EAL_ALWAYS_PANIC_ON_ERROR=n
 CONFIG_RTE_EAL_IGB_UIO=n
-CONFIG_RTE_EAL_VFIO=n
+#CONFIG_RTE_EAL_VFIO=n
 CONFIG_RTE_MAX_VFIO_GROUPS=64
 CONFIG_RTE_MAX_VFIO_CONTAINERS=64
 CONFIG_RTE_MALLOC_DEBUG=n
-CONFIG_RTE_EAL_NUMA_AWARE_HUGEPAGES=n
+#CONFIG_RTE_EAL_NUMA_AWARE_HUGEPAGES=n
 CONFIG_RTE_USE_LIBBSD=n
 
 #
@@ -471,7 +471,7 @@ CONFIG_RTE_LIBRTE_PMD_BBDEV_TURBO_SW=n
 # Compile generic crypto device library
 #
 #CONFIG_RTE_LIBRTE_CRYPTODEV=n
-CONFIG_RTE_CRYPTO_MAX_DEVS=64
+#CONFIG_RTE_CRYPTO_MAX_DEVS=64
 
 #
 # Compile PMD for ARMv8 Crypto device
@@ -493,7 +493,7 @@ CONFIG_RTE_LIBRTE_DPAA_MAX_CRYPTODEV=4
 #
 # Compile PMD for QuickAssist based devices - see docs for details
 #
-#CONFIG_RTE_LIBRTE_PMD_QAT=n
+#CONFIG_RTE_LIBRTE_PMD_QAT=y
 #CONFIG_RTE_LIBRTE_PMD_QAT_SYM=n
 #
 # Max. number of QuickAssist devices, which can be detected and attached
@@ -541,6 +541,7 @@ CONFIG_RTE_LIBRTE_PMD_KASUMI=n
 #
 CONFIG_RTE_LIBRTE_PMD_ZUC=n
 
+#
 # Compile PMD for Crypto Scheduler device
 #
 CONFIG_RTE_LIBRTE_PMD_CRYPTO_SCHEDULER=n
