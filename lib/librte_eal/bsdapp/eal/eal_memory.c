@@ -43,7 +43,7 @@ rte_eal_hugepage_init(void)
 	struct rte_mem_config *mcfg;
 	uint64_t total_mem = 0;
 	void *addr;
-	unsigned int i, j, seg_idx = 0;
+	unsigned int i, j;
 
 	/* get pointer to global configuration */
 	mcfg = rte_eal_get_configuration()->mem_config;
@@ -127,29 +127,17 @@ rte_eal_hugepage_init(void)
 
 			for (msl_idx = 0; msl_idx < RTE_MAX_MEMSEG_LISTS;
 					msl_idx++) {
-				bool empty;
 				msl = &mcfg->memsegs[msl_idx];
 				arr = &msl->memseg_arr;
 
 				if (msl->page_sz != page_sz)
 					continue;
 
-				empty = arr->count == 0;
-
-				/* we need 1, plus hole if not empty */
-				ms_idx = rte_fbarray_find_next_n_free(arr,
-						0, 1 + (empty ? 1 : 0));
+				ms_idx = rte_fbarray_find_next_n_free(arr, 0, 1);
 
 				/* memseg list is full? */
 				if (ms_idx < 0)
 					continue;
-
-				/* leave some space between memsegs, they are
-				 * not IOVA contiguous, so they shouldn't be VA
-				 * contiguous either.
-				 */
-				if (!empty)
-					ms_idx++;
 
 				break;
 			}
@@ -200,7 +188,7 @@ rte_eal_hugepage_init(void)
 
 			RTE_LOG(INFO, EAL, "Mapped memory segment %u @ %p: physaddr:0x%"
 					PRIx64", len %zu\n",
-					seg_idx, addr, physaddr, page_sz);
+					j, addr, physaddr, page_sz);
 
 			total_mem += seg->len;
 		}
