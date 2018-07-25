@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "9e7a17c2_a9259cf8",
+        "filename": "lib/librte_eal/bsdapp/eal/eal_memory.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 150,
+      "author": {
+        "id": 1011218
+      },
+      "writtenOn": "2018-07-25T07:53:06Z",
+      "side": 0,
+      "message": "I wonder why. It works without that hole now, right? I can\u0027t think of any use for it.\n\nI agree there\u0027s a bug in this code and the patch seems fine, but it needs some more explanation.",
+      "range": {
+        "startLine": 147,
+        "startChar": 4,
+        "endLine": 150,
+        "endChar": 7
+      },
+      "revId": "8ea4a34725b2fe7b44de966fd3cf5d65c4c1f62d",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": true
+    }
+  ]
+}
