@@ -22,6 +22,30 @@
       "revId": "8ea4a34725b2fe7b44de966fd3cf5d65c4c1f62d",
       "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
       "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "a3110e27_5f81b636",
+        "filename": "lib/librte_eal/bsdapp/eal/eal_memory.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 150,
+      "author": {
+        "id": 1011222
+      },
+      "writtenOn": "2018-07-25T18:07:14Z",
+      "side": 0,
+      "message": "Yeah - I totally agree.  I\u0027ll work to get a fix upstreamed - probably not this patch as-is though.  At least now we can do some testing on FreeBSD and unblock the move to DPDK 18.05.",
+      "parentUuid": "9e7a17c2_a9259cf8",
+      "range": {
+        "startLine": 147,
+        "startChar": 4,
+        "endLine": 150,
+        "endChar": 7
+      },
+      "revId": "8ea4a34725b2fe7b44de966fd3cf5d65c4c1f62d",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": true
     }
   ]
 }
