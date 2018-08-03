@@ -210,7 +210,6 @@ int mlx5_getenv_int(const char *);
 /* mlx5_ethdev.c */
 
 int mlx5_get_ifname(const struct rte_eth_dev *dev, char (*ifname)[IF_NAMESIZE]);
-int mlx5_ifindex(const struct rte_eth_dev *dev);
 unsigned int mlx5_ifindex(const struct rte_eth_dev *dev);
 int mlx5_ifreq(const struct rte_eth_dev *dev, int req, struct ifreq *ifr);
 int mlx5_get_mtu(struct rte_eth_dev *dev, uint16_t *mtu);
