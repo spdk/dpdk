@@ -116,7 +116,7 @@ CONFIG_RTE_LIBRTE_PCI=y
 #
 # Compile the argument parser library
 #
-#CONFIG_RTE_LIBRTE_KVARGS=y
+CONFIG_RTE_LIBRTE_KVARGS=y
 
 #
 # Compile generic ethernet library
