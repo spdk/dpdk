@@ -270,6 +270,7 @@ rte_devargs_parsef(struct rte_devargs *da, const char *format, ...)
 	va_list ap;
 	size_t len;
 	char *dev;
+	int rc;
 
 	if (da == NULL)
 		return -EINVAL;
@@ -288,7 +289,9 @@ rte_devargs_parsef(struct rte_devargs *da, const char *format, ...)
 	vsnprintf(dev, len + 1, format, ap);
 	va_end(ap);
 
-	return rte_devargs_parse(da, dev);
+	rc = rte_devargs_parse(da, dev);
+	free(dev);
+	return rc;
 }
 
 int __rte_experimental
