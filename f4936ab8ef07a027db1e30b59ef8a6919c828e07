@@ -1,0 +1,38 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "96f0cc21_7fca9237",
+        "filename": "lib/librte_eal/linuxapp/eal/eal.c",
+        "patchSetId": 3
+      },
+      "lineNbr": 831,
+      "author": {
+        "id": 1012251
+      },
+      "writtenOn": "2018-08-21T05:24:48Z",
+      "side": 1,
+      "message": "rte_atomic32_clear(\u0026run_once) should be added here too?",
+      "revId": "f4936ab8ef07a027db1e30b59ef8a6919c828e07",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "331d618a_52f998b5",
+        "filename": "lib/librte_eal/linuxapp/eal/eal.c",
+        "patchSetId": 3
+      },
+      "lineNbr": 875,
+      "author": {
+        "id": 1012251
+      },
+      "writtenOn": "2018-08-21T05:24:48Z",
+      "side": 1,
+      "message": "rte_atomic32_clear(\u0026run_once) should be added here too?",
+      "revId": "f4936ab8ef07a027db1e30b59ef8a6919c828e07",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    }
+  ]
+}
