@@ -472,24 +472,21 @@ error:
 }
 
 /*
- * Is pci device bound to any kdrv
+ * Is there a pci device attached to any rte_pci_driver
  */
 static inline int
-pci_one_device_is_bound(void)
+pci_one_device_is_attached(void)
 {
 	struct rte_pci_device *dev = NULL;
-	int ret = 0;
+	struct rte_pci_driver *drv = NULL;
 
-	FOREACH_DEVICE_ON_PCIBUS(dev) {
-		if (dev->kdrv == RTE_KDRV_UNKNOWN ||
-		    dev->kdrv == RTE_KDRV_NONE) {
-			continue;
-		} else {
-			ret = 1;
-			break;
+	FOREACH_DRIVER_ON_PCIBUS(drv) {
+		FOREACH_DEVICE_ON_PCIBUS(dev) {
+			if (rte_pci_match(drv, dev))
+				return 1;
 		}
 	}
-	return ret;
+	return 0;
 }
 
 /*
@@ -633,14 +630,14 @@ pci_devices_iommu_support_va(void)
 enum rte_iova_mode
 rte_pci_get_iommu_class(void)
 {
-	bool is_bound;
+	bool is_attached;
 	bool is_vfio_noiommu_enabled = true;
 	bool has_iova_va;
 	bool is_bound_uio;
 	bool iommu_no_va;
 
-	is_bound = pci_one_device_is_bound();
-	if (!is_bound)
+	is_attached = pci_one_device_is_attached();
+	if (!is_attached)
 		return RTE_IOVA_DC;
 
 	has_iova_va = pci_one_device_has_iova_va();
