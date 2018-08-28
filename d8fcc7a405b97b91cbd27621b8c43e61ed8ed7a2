@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "f21e866c_7eac5d57",
+        "filename": "lib/librte_eal/linuxapp/eal/eal.c",
+        "patchSetId": 4
+      },
+      "lineNbr": 846,
+      "author": {
+        "id": 1014600
+      },
+      "writtenOn": "2018-08-28T13:51:27Z",
+      "side": 1,
+      "message": "The logid shouldn\u0027t be free here, because openlog (in rte_eal_log_init()) copies the value\nof logid, instead of the memory that logid pointed. We should reserve logid until program\nexit.",
+      "revId": "d8fcc7a405b97b91cbd27621b8c43e61ed8ed7a2",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": true
+    }
+  ]
+}
