@@ -147,6 +147,28 @@ int __rte_experimental rte_eal_hotplug_add(const char *busname, const char *devn
 		return -ENOTSUP;
 	}
 
+	/* Check if device is blacklisted */
+	if (bus->conf.scan_mode == RTE_BUS_SCAN_WHITELIST)
+		ret = -EINVAL;
+
+	da = NULL;
+	do {
+		da = rte_devargs_next(busname, da);
+		if (da != NULL && strcmp(da->name, devname) == 0) {
+			if (da->policy == RTE_DEV_BLACKLISTED)
+				ret = -EINVAL;
+			else
+				ret = 0;
+			break;
+		}
+	} while (da != NULL);
+
+	if (ret) {
+		RTE_LOG(INFO, EAL, "  Device is blacklisted (%s)\n",
+				devname);
+		return ret;
+	}
+
 	da = calloc(1, sizeof(*da));
 	if (da == NULL)
 		return -ENOMEM;
