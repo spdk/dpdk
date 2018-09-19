@@ -412,13 +412,6 @@ rte_vlog(uint32_t level, uint32_t logtype, const char *format, va_list ap)
 		}
 	}
 
-	if (level > rte_logs.level)
-		return 0;
-	if (logtype >= rte_logs.dynamic_types_len)
-		return -1;
-	if (level > rte_logs.dynamic_types[logtype].loglevel)
-		return 0;
-
 	/* save loglevel and logtype in a global per-lcore variable */
 	RTE_PER_LCORE(log_cur_msg).loglevel = level;
 	RTE_PER_LCORE(log_cur_msg).logtype = logtype;
