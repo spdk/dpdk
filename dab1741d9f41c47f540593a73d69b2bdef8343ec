@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "96a83d86_eba29a97",
+        "filename": "config/common_base",
+        "patchSetId": 2
+      },
+      "lineNbr": 473,
+      "author": {
+        "id": 1011289
+      },
+      "writtenOn": "2018-09-21T15:17:13Z",
+      "side": 1,
+      "message": "This and the following all need to be commented out in both base and spdk config files are they\u0027re set in the makefile.  If they are set here to iether y or n the makefile can\u0027t oset them.\nCONFIG_RTE_LIBRTE_PMD_AESNI_MB\nCONFIG_RTE_LIBRTE_CRYPTODEV\nCONFIG_RTE_LIBRTE_REORDER\nCONFIG_RTE_LIBRTE_PMD_QAT",
+      "revId": "dab1741d9f41c47f540593a73d69b2bdef8343ec",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": true
+    }
+  ]
+}
