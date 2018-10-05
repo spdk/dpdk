@@ -878,6 +878,11 @@ rte_fbarray_destroy(struct rte_fbarray *arr)
 	if (ret)
 		return ret;
 
+	if (internal_config.no_shconf) {
+		memset(arr, 0, sizeof(*arr));
+		return 0;
+	}
+
 	/* try deleting the file */
 	eal_get_fbarray_path(path, sizeof(path), arr->name);
 
