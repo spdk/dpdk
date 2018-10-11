@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "f6f7a781_b30d765b",
+        "filename": "config/common_linuxapp",
+        "patchSetId": 1
+      },
+      "lineNbr": 10,
+      "author": {
+        "id": 1011289
+      },
+      "writtenOn": "2018-10-11T15:41:22Z",
+      "side": 1,
+      "message": "Is this change really needed? I haven\u0027t seen us modify this file before? Maybe try w/o it if you haven\u0027t already",
+      "revId": "8fadd2d76e7c725c919b731bacb3d08ea3952eb2",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": true
+    }
+  ]
+}
