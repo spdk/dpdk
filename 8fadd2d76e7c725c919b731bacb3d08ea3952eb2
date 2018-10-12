@@ -34,6 +34,24 @@
       "revId": "8fadd2d76e7c725c919b731bacb3d08ea3952eb2",
       "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
       "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "75d39364_282d0fe9",
+        "filename": "config/common_linuxapp",
+        "patchSetId": 1
+      },
+      "lineNbr": 10,
+      "author": {
+        "id": 1011223
+      },
+      "writtenOn": "2018-10-12T15:04:46Z",
+      "side": 1,
+      "message": "Like Darek said. common_linuxapp just didn\u0027t touch the other variables you had to modify for crypto. And I did try it without this change. It didn\u0027t work. The igb_uio module was built every time regardless of the crypto flag.",
+      "parentUuid": "77a869b1_7223385e",
+      "revId": "8fadd2d76e7c725c919b731bacb3d08ea3952eb2",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": true
     }
   ]
 }
