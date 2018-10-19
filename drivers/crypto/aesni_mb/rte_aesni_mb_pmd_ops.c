@@ -509,8 +509,6 @@ aesni_mb_pmd_qp_release(struct rte_cryptodev *dev, uint16_t qp_id)
 		r = rte_ring_lookup(qp->name);
 		if (r)
 			rte_ring_free(r);
-		if (qp->mb_mgr)
-			free_mb_mgr(qp->mb_mgr);
 		rte_free(qp);
 		dev->data->queue_pairs[qp_id] = NULL;
 	}
@@ -570,7 +568,6 @@ aesni_mb_pmd_qp_setup(struct rte_cryptodev *dev, uint16_t qp_id,
 {
 	struct aesni_mb_qp *qp = NULL;
 	struct aesni_mb_private *internals = dev->data->dev_private;
-	int ret = -1;
 
 	/* Free memory prior to re-allocation if needed. */
 	if (dev->data->queue_pairs[qp_id] != NULL)
@@ -588,19 +585,11 @@ aesni_mb_pmd_qp_setup(struct rte_cryptodev *dev, uint16_t qp_id,
 	if (aesni_mb_pmd_qp_set_unique_name(dev, qp))
 		goto qp_setup_cleanup;
 
-
-	qp->mb_mgr = alloc_mb_mgr(0);
-	if (qp->mb_mgr == NULL) {
-		ret = -ENOMEM;
-		goto qp_setup_cleanup;
-	}
-
 	qp->op_fns = &job_ops[internals->vector_mode];
 
 	qp->ingress_queue = aesni_mb_pmd_qp_create_processed_ops_ring(qp,
 			qp_conf->nb_descriptors, socket_id);
 	if (qp->ingress_queue == NULL) {
-		ret = -1;
 		goto qp_setup_cleanup;
 	}
 
@@ -614,17 +603,14 @@ aesni_mb_pmd_qp_setup(struct rte_cryptodev *dev, uint16_t qp_id,
 				"digest_mp_%u_%u", dev->data->dev_id, qp_id);
 
 	/* Initialise multi-buffer manager */
-	(*qp->op_fns->job.init_mgr)(qp->mb_mgr);
+	(*qp->op_fns->job.init_mgr)(&qp->mb_mgr);
 	return 0;
 
 qp_setup_cleanup:
-	if (qp) {
-		if (qp->mb_mgr == NULL)
-			free_mb_mgr(qp->mb_mgr);
+	if (qp)
 		rte_free(qp);
-	}
 
-	return ret;
+	return -1;
 }
 
 /** Return the number of allocated queue pairs */
