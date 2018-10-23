@@ -115,7 +115,7 @@ rte_cryptodev_pmd_create(const char *name,
 	}
 
 	/* allocate private device structure */
-	if (rte_eal_process_type() == RTE_PROC_PRIMARY) {
+	if (cryptodev->data->dev_private == NULL) {
 		cryptodev->data->dev_private =
 				rte_zmalloc_socket("cryptodev device private",
 						params->private_data_size,
@@ -154,8 +154,8 @@ rte_cryptodev_pmd_destroy(struct rte_cryptodev *cryptodev)
 	if (retval)
 		return retval;
 
-	if (rte_eal_process_type() == RTE_PROC_PRIMARY)
-		rte_free(cryptodev->data->dev_private);
+	rte_free(cryptodev->data->dev_private);
+	cryptodev->data->dev_private = NULL;
 
 
 	cryptodev->device = NULL;
