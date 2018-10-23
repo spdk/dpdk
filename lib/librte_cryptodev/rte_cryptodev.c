@@ -632,19 +632,26 @@ rte_cryptodev_data_alloc(uint8_t dev_id, struct rte_cryptodev_data **data,
 	if (n >= (int)sizeof(mz_name))
 		return -EINVAL;
 
-	if (rte_eal_process_type() == RTE_PROC_PRIMARY) {
+	mz = rte_memzone_lookup(mz_name);
+	if (mz == NULL) {
 		mz = rte_memzone_reserve(mz_name,
 				sizeof(struct rte_cryptodev_data),
 				socket_id, 0);
-	} else
-		mz = rte_memzone_lookup(mz_name);
+		if (mz != NULL) {
+			memset(mz->addr, 0, sizeof(struct rte_cryptodev_data));
+		} else if (rte_errno == EEXIST) {
+			/*
+			 * The memzone was created by another process between the failed
+			 *  lookup and the subsequent reserve.  So try to look it up again.
+			 */
+			mz = rte_memzone_lookup(mz_name);
+		}
+	}
 
 	if (mz == NULL)
 		return -ENOMEM;
 
 	*data = mz->addr;
-	if (rte_eal_process_type() == RTE_PROC_PRIMARY)
-		memset(*data, 0, sizeof(struct rte_cryptodev_data));
 
 	return 0;
 }
