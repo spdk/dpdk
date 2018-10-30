@@ -569,7 +569,7 @@ CONFIG_RTE_LIBRTE_SECURITY=n
 #
 # Compile generic compression device library
 #
-CONFIG_RTE_LIBRTE_COMPRESSDEV=n
+#CONFIG_RTE_LIBRTE_COMPRESSDEV=n
 CONFIG_RTE_COMPRESS_MAX_DEVS=64
 
 #
@@ -585,7 +585,7 @@ CONFIG_RTE_LIBRTE_PMD_OCTEONTX_ZIPVF=n
 #
 # Compile PMD for ISA-L compression device
 #
-CONFIG_RTE_LIBRTE_PMD_ISAL=n
+#CONFIG_RTE_LIBRTE_PMD_ISAL=n
 
 #
 # Compile PMD for ZLIB compression device
