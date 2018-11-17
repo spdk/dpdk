@@ -675,8 +675,7 @@ rte_pci_get_iommu_class(void)
 					true : false;
 #endif
 
-	if (has_iova_va && !is_bound_uio && !is_vfio_noiommu_enabled &&
-			!iommu_no_va)
+	if (!is_bound_uio && !is_vfio_noiommu_enabled && !iommu_no_va)
 		return RTE_IOVA_VA;
 
 	if (has_iova_va) {
