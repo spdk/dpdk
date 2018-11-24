@@ -358,6 +358,7 @@ int eal_dev_hotplug_request_to_primary(struct eal_dev_mp_req *req)
 	ret = rte_mp_request_sync(&mp_req, &mp_reply, &ts);
 	if (ret || mp_reply.nb_received != 1) {
 		RTE_LOG(ERR, EAL, "cannot send request to primary");
+		free(mp_reply.msgs);
 		if (!ret)
 			return -1;
 		return ret;
@@ -386,6 +387,7 @@ int eal_dev_hotplug_request_to_secondary(struct eal_dev_mp_req *req)
 	ret = rte_mp_request_sync(&mp_req, &mp_reply, &ts);
 	if (ret != 0) {
 		RTE_LOG(ERR, EAL, "rte_mp_request_sync failed\n");
+		free(mp_reply.msgs);
 		return ret;
 	}
 
