@@ -927,12 +927,12 @@ rte_mp_request_sync(struct rte_mp_msg *req, struct rte_mp_reply *reply,
 
 	RTE_LOG(DEBUG, EAL, "request: %s\n", req->name);
 
-	if (check_input(req) == false)
-		return -1;
-
 	reply->nb_sent = 0;
 	reply->nb_received = 0;
 	reply->msgs = NULL;
+
+	if (check_input(req) == false)
+		return -1;
 
 	if (internal_config.no_shconf) {
 		RTE_LOG(DEBUG, EAL, "No shared files mode enabled, IPC is disabled\n");
