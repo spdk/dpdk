@@ -43,6 +43,11 @@
 #endif
 #define PAGE_MASK   (~(PAGE_SIZE - 1))
 
+#define SHIFT_2MB       21
+#define SIZE_2MB        (1ULL << SHIFT_2MB)
+#define CEIL_2MB(x)     ((((uintptr_t)x) + SIZE_2MB - 1) / SIZE_2MB) << SHIFT_2MB
+#define MASK_2MB        ((1ULL << SHIFT_2MB) - 1)
+
 static struct rte_tailq_elem rte_vfio_tailq = {
 	.name = "VFIO_RESOURCE_LIST",
 };
@@ -512,9 +517,20 @@ pci_vfio_mmap_bar(int vfio_dev_fd, struct mapped_pci_resource *vfio_res,
 		memreg[0].size = bar->size;
 	}
 
-	/* reserve the address using an inaccessible mapping */
-	bar_addr = mmap(bar->addr, bar->size, 0, MAP_PRIVATE |
-			MAP_ANONYMOUS | additional_flags, -1, 0);
+	void *map_addr;
+	map_addr = bar->addr;
+	while(true) {
+		/* reserve the address using an inaccessible mapping */
+		bar_addr = mmap(map_addr, bar->size, 0, MAP_PRIVATE |
+				MAP_ANONYMOUS | additional_flags, -1, 0);
+		if(bar_addr != MAP_FAILED && ((uintptr_t)bar_addr & MASK_2MB)) {
+			munmap(bar_addr, bar->size);
+			/*check the next 2MB boundary*/
+			map_addr = RTE_PTR_ADD(map_addr, (size_t) SIZE_2MB);
+		} else {
+			break;
+		}
+	}
 	if (bar_addr != MAP_FAILED) {
 		void *map_addr = NULL;
 		if (memreg[0].size) {
@@ -742,11 +758,15 @@ pci_vfio_map_resource_primary(struct rte_pci_device *dev)
 		}
 
 		/* try mapping somewhere close to the end of hugepages */
-		if (pci_map_addr == NULL)
+		if (pci_map_addr == NULL) {
 			pci_map_addr = pci_find_max_end_va();
+			pci_map_addr = (void *) (CEIL_2MB(pci_map_addr));
+		}
 
 		bar_addr = pci_map_addr;
-		pci_map_addr = RTE_PTR_ADD(bar_addr, (size_t) reg->size);
+
+		RTE_LOG(INFO, EAL, " %s trying to map BAR%i in virt addr"
+			" 0x%" PRIxPTR "\n", pci_addr, i, (uintptr_t)bar_addr);
 
 		maps[i].addr = bar_addr;
 		maps[i].offset = reg->offset;
@@ -762,6 +782,13 @@ pci_vfio_map_resource_primary(struct rte_pci_device *dev)
 		}
 
 		dev->mem_resource[i].addr = maps[i].addr;
+
+		if(ret == 0 && maps[i].addr != 0) {
+			RTE_LOG(INFO, EAL, " %s BAR%i mapped in virt addr"
+				" 0x%" PRIxPTR "\n", pci_addr, i,
+				(unsigned long)maps[i].addr);
+			pci_map_addr = RTE_PTR_ADD(bar_addr, (size_t) CEIL_2MB(reg->size));
+		}
 
 		free(reg);
 	}
