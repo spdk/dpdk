@@ -211,6 +211,8 @@ handle_alloc_request(const struct malloc_mp_req *m,
 
 	map_addr = ms[0]->addr;
 
+	eal_memalloc_mem_event_notify(RTE_MEM_EVENT_ALLOC, map_addr, alloc_sz);
+
 	/* we have succeeded in allocating memory, but we still need to sync
 	 * with other processes. however, since DPDK IPC is single-threaded, we
 	 * send an asynchronous request and exit this callback.
