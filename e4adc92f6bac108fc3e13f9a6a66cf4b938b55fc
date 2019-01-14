@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "4f950d8d_d033118d",
+        "filename": "config/common_base",
+        "patchSetId": 1
+      },
+      "lineNbr": 499,
+      "author": {
+        "id": 1011222
+      },
+      "writtenOn": "2019-01-14T22:50:41Z",
+      "side": 1,
+      "message": "we set this to n here, and then back to y in next patch\n\nsame for COMPRESSDEV below\n\nI\u0027d say let\u0027s just simplify this now and not carry this weirdness forward",
+      "revId": "e4adc92f6bac108fc3e13f9a6a66cf4b938b55fc",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": true
+    }
+  ]
+}
