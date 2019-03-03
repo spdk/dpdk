@@ -242,6 +242,8 @@ init_vring_queue(struct virtio_net *dev, uint32_t vring_idx)
 
 	memset(vq, 0, sizeof(struct vhost_virtqueue));
 
+	vq->vring_idx = vring_idx;
+
 	vq->kickfd = VIRTIO_UNINITIALIZED_EVENTFD;
 	vq->callfd = VIRTIO_UNINITIALIZED_EVENTFD;
 
