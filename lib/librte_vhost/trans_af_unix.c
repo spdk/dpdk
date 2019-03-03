@@ -42,6 +42,10 @@
 
 #define MAX_VIRTIO_BACKLOG 128
 
+struct af_unix_socket {
+	struct vhost_user_socket socket; /* must be the first field! */
+};
+
 static void vhost_user_read_cb(int connfd, void *dat, int *remove);
 
 /*
@@ -522,5 +526,6 @@ af_unix_vring_call(struct virtio_net *dev __rte_unused,
 }
 
 const struct vhost_transport_ops af_unix_trans_ops = {
+	.socket_size = sizeof(struct af_unix_socket),
 	.vring_call = af_unix_vring_call,
 };
