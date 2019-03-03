@@ -27,6 +27,7 @@
 
 /* Path to folder where character device will be created. Can be set by user. */
 static char dev_pathname[PATH_MAX] = "";
+static uint64_t dev_flags; /* for rte_vhost_driver_register() */
 
 static struct vhost_scsi_ctrlr *g_vhost_ctrlr;
 static int g_should_stop;
@@ -402,7 +403,7 @@ vhost_scsi_ctrlr_construct(void)
 	int ret;
 	struct vhost_scsi_ctrlr *ctrlr;
 
-	if (rte_vhost_driver_register(dev_pathname, 0) != 0) {
+	if (rte_vhost_driver_register(dev_pathname, dev_flags) != 0) {
 		fprintf(stderr, "socket %s already exists\n", dev_pathname);
 		return NULL;
 	}
@@ -438,7 +439,8 @@ static void
 set_dev_pathname(const char *path)
 {
 	if (dev_pathname[0])
-		rte_exit(EXIT_FAILURE, "--socket-file can only be given once.\n");
+		rte_exit(EXIT_FAILURE, "Only one of --socket-file or "
+			 "--virtio-vhost-user-pci can be given.\n");
 
 	snprintf(dev_pathname, sizeof(dev_pathname), "%s", path);
 }
@@ -447,7 +449,8 @@ static void
 vhost_scsi_usage(const char *prgname)
 {
 	fprintf(stderr, "%s [EAL options] --\n"
-	"    --socket-file PATH: The path of the UNIX domain socket\n",
+	"    --socket-file PATH: The path of the UNIX domain socket\n"
+	"    --virtio-vhost-user-pci DomBDF: PCI adapter address\n",
 		prgname);
 }
 
@@ -459,6 +462,7 @@ vhost_scsi_parse_args(int argc, char **argv)
 	const char *prgname = argv[0];
 	static struct option long_option[] = {
 		{"socket-file", required_argument, NULL, 0},
+		{"virtio-vhost-user-pci", required_argument, NULL, 0},
 		{NULL, 0, 0, 0},
 	};
 
@@ -469,6 +473,10 @@ vhost_scsi_parse_args(int argc, char **argv)
 			if (!strcmp(long_option[option_index].name,
 				    "socket-file")) {
 				set_dev_pathname(optarg);
+			} else if (!strcmp(long_option[option_index].name,
+				   "virtio-vhost-user-pci")) {
+				set_dev_pathname(optarg);
+				dev_flags = RTE_VHOST_USER_VIRTIO_TRANSPORT;
 			}
 			break;
 		default:
