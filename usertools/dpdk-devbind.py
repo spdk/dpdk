@@ -28,12 +28,15 @@ cavium_zip = {'Class': '12', 'Vendor': '177d', 'Device': 'a037',
               'SVendor': None, 'SDevice': None}
 avp_vnic = {'Class': '05', 'Vendor': '1af4', 'Device': '1110',
               'SVendor': None, 'SDevice': None}
+virtio_vhost_user = {'Class': '00', 'Vendor': '1af4', 'Device': '1017,1058',
+                     'SVendor': None, 'SDevice': None}
 
 network_devices = [network_class, cavium_pkx, avp_vnic]
 crypto_devices = [encryption_class, intel_processor_class]
 eventdev_devices = [cavium_sso, cavium_tim]
 mempool_devices = [cavium_fpa]
 compress_devices = [cavium_zip]
+other_devices = [virtio_vhost_user]
 
 # global dict ethernet devices present. Dictionary indexed by PCI address.
 # Each device within this is itself a dictionary of device properties
@@ -588,6 +591,8 @@ def show_status():
     if status_dev == "compress" or status_dev == "all":
         show_device_status(compress_devices , "Compress")
 
+    if status_dev == 'other' or status_dev == 'all':
+        show_device_status(other_devices, "Other")
 
 def parse_args():
     '''Parses the command-line arguments given by the user and takes the
@@ -663,6 +668,7 @@ def do_arg_actions():
             get_device_details(eventdev_devices)
             get_device_details(mempool_devices)
             get_device_details(compress_devices)
+            get_device_details(other_devices)
         show_status()
 
 
@@ -683,6 +689,7 @@ def main():
     get_device_details(eventdev_devices)
     get_device_details(mempool_devices)
     get_device_details(compress_devices)
+    get_device_details(other_devices)
     do_arg_actions()
 
 if __name__ == "__main__":
