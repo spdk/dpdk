@@ -4,6 +4,8 @@
  * Copyright(c) 2019 Arrikto Inc.
  */
 
+#include <sys/socket.h>
+#include <sys/un.h>
 #include <fcntl.h>
 
 #include <rte_log.h>
@@ -15,8 +17,11 @@
 
 struct af_unix_socket {
 	struct vhost_user_socket socket; /* must be the first field! */
+	int socket_fd;
+	struct sockaddr_un un;
 };
 
+static int create_unix_socket(struct vhost_user_socket *vsocket);
 static void vhost_user_read_cb(int connfd, void *dat, int *remove);
 
 /*
@@ -236,11 +241,13 @@ vhost_user_read_cb(int connfd, void *dat, int *remove)
 	}
 }
 
-int
+static int
 create_unix_socket(struct vhost_user_socket *vsocket)
 {
+	struct af_unix_socket *af_vsocket =
+		container_of(vsocket, struct af_unix_socket, socket);
 	int fd;
-	struct sockaddr_un *un = &vsocket->un;
+	struct sockaddr_un *un = &af_vsocket->un;
 
 	fd = socket(AF_UNIX, SOCK_STREAM, 0);
 	if (fd < 0)
@@ -261,15 +268,17 @@ create_unix_socket(struct vhost_user_socket *vsocket)
 	strncpy(un->sun_path, vsocket->path, sizeof(un->sun_path));
 	un->sun_path[sizeof(un->sun_path) - 1] = '\0';
 
-	vsocket->socket_fd = fd;
+	af_vsocket->socket_fd = fd;
 	return 0;
 }
 
 int
 vhost_user_start_server(struct vhost_user_socket *vsocket)
 {
+	struct af_unix_socket *af_vsocket =
+		container_of(vsocket, struct af_unix_socket, socket);
 	int ret;
-	int fd = vsocket->socket_fd;
+	int fd = af_vsocket->socket_fd;
 	const char *path = vsocket->path;
 
 	/*
@@ -282,7 +291,7 @@ vhost_user_start_server(struct vhost_user_socket *vsocket)
 	 * The user must ensure that the socket does not exist before
 	 * registering the vhost driver in server mode.
 	 */
-	ret = bind(fd, (struct sockaddr *)&vsocket->un, sizeof(vsocket->un));
+	ret = bind(fd, (struct sockaddr *)&af_vsocket->un, sizeof(af_vsocket->un));
 	if (ret < 0) {
 		RTE_LOG(ERR, VHOST_CONFIG,
 			"failed to bind to %s: %s; remove it and try again\n",
@@ -424,13 +433,15 @@ vhost_user_reconnect_init(void)
 int
 vhost_user_start_client(struct vhost_user_socket *vsocket)
 {
+	struct af_unix_socket *af_vsocket =
+		container_of(vsocket, struct af_unix_socket, socket);
 	int ret;
-	int fd = vsocket->socket_fd;
+	int fd = af_vsocket->socket_fd;
 	const char *path = vsocket->path;
 	struct vhost_user_reconnect *reconn;
 
-	ret = vhost_user_connect_nonblock(fd, (struct sockaddr *)&vsocket->un,
-					  sizeof(vsocket->un));
+	ret = vhost_user_connect_nonblock(fd, (struct sockaddr *)&af_vsocket->un,
+					  sizeof(af_vsocket->un));
 	if (ret == 0) {
 		vhost_user_add_connection(fd, vsocket);
 		return 0;
@@ -453,7 +464,7 @@ vhost_user_start_client(struct vhost_user_socket *vsocket)
 		close(fd);
 		return -1;
 	}
-	reconn->un = vsocket->un;
+	reconn->un = af_vsocket->un;
 	reconn->fd = fd;
 	reconn->vsocket = vsocket;
 	pthread_mutex_lock(&reconn_list.mutex);
@@ -463,7 +474,7 @@ vhost_user_start_client(struct vhost_user_socket *vsocket)
 	return 0;
 }
 
-bool
+static bool
 vhost_user_remove_reconnect(struct vhost_user_socket *vsocket)
 {
 	int found = false;
@@ -488,6 +499,28 @@ vhost_user_remove_reconnect(struct vhost_user_socket *vsocket)
 }
 
 static int
+af_unix_socket_init(struct vhost_user_socket *vsocket,
+		    uint64_t flags __rte_unused)
+{
+	return create_unix_socket(vsocket);
+}
+
+static void
+af_unix_socket_cleanup(struct vhost_user_socket *vsocket)
+{
+	struct af_unix_socket *af_vsocket =
+		container_of(vsocket, struct af_unix_socket, socket);
+
+	if (vsocket->is_server) {
+		fdset_del(&vhost_user.fdset, af_vsocket->socket_fd);
+		close(af_vsocket->socket_fd);
+		unlink(vsocket->path);
+	} else if (vsocket->reconnect) {
+		vhost_user_remove_reconnect(vsocket);
+	}
+}
+
+static int
 af_unix_vring_call(struct virtio_net *dev __rte_unused,
 		   struct vhost_virtqueue *vq)
 {
@@ -498,5 +531,7 @@ af_unix_vring_call(struct virtio_net *dev __rte_unused,
 
 const struct vhost_transport_ops af_unix_trans_ops = {
 	.socket_size = sizeof(struct af_unix_socket),
+	.socket_init = af_unix_socket_init,
+	.socket_cleanup = af_unix_socket_cleanup,
 	.vring_call = af_unix_vring_call,
 };
