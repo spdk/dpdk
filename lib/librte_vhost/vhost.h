@@ -296,6 +296,9 @@ struct virtio_net;
  * A structure containing function pointers for transport-specific operations.
  */
 struct vhost_transport_ops {
+	/** Size of struct vhost_user_socket-derived per-socket state */
+	size_t socket_size;
+
 	/**
 	 * Notify the guest that used descriptors have been added to the vring.
 	 * The VRING_AVAIL_F_NO_INTERRUPT flag and event idx have already been checked
@@ -374,6 +377,11 @@ TAILQ_HEAD(vhost_user_connection_list, vhost_user_connection);
 /*
  * Every time rte_vhost_driver_register() is invoked, an associated
  * vhost_user_socket struct will be created.
+ *
+ * Transport-specific per-socket state can be kept by embedding this struct at
+ * the beginning of a transport-specific struct.  Set
+ * vhost_transport_ops->socket_size to the size of the transport-specific
+ * struct.
  */
 struct vhost_user_socket {
 	struct vhost_user_connection_list conn_list;
@@ -407,6 +415,7 @@ struct vhost_user_socket {
 	int vdpa_dev_id;
 
 	struct vhost_device_ops const *notify_ops;
+	struct vhost_transport_ops const *trans_ops;
 };
 
 struct vhost_user_connection {
