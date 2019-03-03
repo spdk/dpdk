@@ -298,6 +298,9 @@ struct vhost_transport_ops {
 	/** Size of struct vhost_user_socket-derived per-socket state */
 	size_t socket_size;
 
+	/** Size of struct virtio_net-derived per-device state */
+	size_t device_size;
+
 	/**
 	 * Initialize a vhost-user socket that is being created by
 	 * rte_vhost_driver_register().  This function checks that the flags
@@ -356,6 +359,11 @@ extern const struct vhost_transport_ops af_unix_trans_ops;
 /**
  * Device structure contains all configuration information relating
  * to the device.
+ *
+ * Transport-specific per-device state can be kept by embedding this struct at
+ * the beginning of a transport-specific struct.  Set
+ * vhost_transport_ops->device_size to the size of the transport-specific
+ * struct.
  */
 struct virtio_net {
 	/* Frontend (QEMU) memory and memory region information */
@@ -673,7 +681,8 @@ get_device(int vid)
 	return dev;
 }
 
-int vhost_new_device(const struct vhost_transport_ops *trans_ops);
+struct virtio_net *
+vhost_new_device(const struct vhost_transport_ops *trans_ops);
 void cleanup_device(struct virtio_net *dev, int destroy);
 void reset_device(struct virtio_net *dev);
 void vhost_destroy_device(int);
