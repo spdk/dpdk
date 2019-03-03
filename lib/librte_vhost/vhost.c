@@ -315,7 +315,7 @@ reset_device(struct virtio_net *dev)
  * Invoked when there is a new vhost-user connection established (when
  * there is a new virtio device being attached).
  */
-int
+struct virtio_net *
 vhost_new_device(const struct vhost_transport_ops *trans_ops)
 {
 	struct virtio_net *dev;
@@ -329,14 +329,14 @@ vhost_new_device(const struct vhost_transport_ops *trans_ops)
 	if (i == MAX_VHOST_DEVICE) {
 		RTE_LOG(ERR, VHOST_CONFIG,
 			"Failed to find a free slot for new device.\n");
-		return -1;
+		return NULL;
 	}
 
-	dev = rte_zmalloc(NULL, sizeof(struct virtio_net), 0);
+	dev = rte_zmalloc(NULL, trans_ops->device_size, 0);
 	if (dev == NULL) {
 		RTE_LOG(ERR, VHOST_CONFIG,
 			"Failed to allocate memory for new dev.\n");
-		return -1;
+		return NULL;
 	}
 
 	vhost_devices[i] = dev;
@@ -348,7 +348,7 @@ vhost_new_device(const struct vhost_transport_ops *trans_ops)
 	dev->postcopy_ufd = -1;
 	rte_spinlock_init(&dev->slave_req_lock);
 
-	return i;
+	return dev;
 }
 
 void
