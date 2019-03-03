@@ -286,6 +286,30 @@ struct guest_page {
 	uint64_t size;
 };
 
+struct virtio_net;
+
+/**
+ * A structure containing function pointers for transport-specific operations.
+ */
+struct vhost_transport_ops {
+	/**
+	 * Notify the guest that used descriptors have been added to the vring.
+	 * The VRING_AVAIL_F_NO_INTERRUPT flag has already been checked so this
+	 * function just needs to perform the notification.
+	 *
+	 * @param dev
+	 *  vhost device
+	 * @param vq
+	 *  vhost virtqueue
+	 * @return
+	 *  0 on success, -1 on failure
+	 */
+	int (*vring_call)(struct virtio_net *dev, struct vhost_virtqueue *vq);
+};
+
+/** The traditional AF_UNIX vhost-user protocol transport. */
+extern const struct vhost_transport_ops af_unix_trans_ops;
+
 /**
  * Device structure contains all configuration information relating
  * to the device.
@@ -312,6 +336,7 @@ struct virtio_net {
 	uint16_t		mtu;
 
 	struct vhost_device_ops const *notify_ops;
+	struct vhost_transport_ops const *trans_ops;
 
 	uint32_t		nr_guest_pages;
 	uint32_t		max_guest_pages;
@@ -646,12 +671,11 @@ vhost_vring_call_split(struct virtio_net *dev, struct vhost_virtqueue *vq)
 		if ((vhost_need_event(vhost_used_event(vq), new, old) &&
 					(vq->callfd >= 0)) ||
 				unlikely(!signalled_used_valid))
-			eventfd_write(vq->callfd, (eventfd_t) 1);
+			dev->trans_ops->vring_call(dev, vq);
 	} else {
 		/* Kick the guest if necessary. */
-		if (!(vq->avail->flags & VRING_AVAIL_F_NO_INTERRUPT)
-				&& (vq->callfd >= 0))
-			eventfd_write(vq->callfd, (eventfd_t)1);
+		if (!(vq->avail->flags & VRING_AVAIL_F_NO_INTERRUPT))
+			dev->trans_ops->vring_call(dev, vq);
 	}
 }
 
@@ -703,7 +727,7 @@ vhost_vring_call_packed(struct virtio_net *dev, struct vhost_virtqueue *vq)
 		kick = true;
 kick:
 	if (kick)
-		eventfd_write(vq->callfd, (eventfd_t)1);
+		dev->trans_ops->vring_call(dev, vq);
 }
 
 static __rte_always_inline void *
