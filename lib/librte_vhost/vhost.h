@@ -673,7 +673,7 @@ get_device(int vid)
 	return dev;
 }
 
-int vhost_new_device(void);
+int vhost_new_device(const struct vhost_transport_ops *trans_ops);
 void cleanup_device(struct virtio_net *dev, int destroy);
 void reset_device(struct virtio_net *dev);
 void vhost_destroy_device(int);
