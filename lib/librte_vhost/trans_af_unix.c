@@ -403,7 +403,7 @@ vhost_user_read_cb(int connfd, void *dat, int *remove)
 		goto err;
 	}
 
-	ret = vhost_user_msg_handler(conn->device.vid, connfd, &msg);
+	ret = vhost_user_msg_handler(conn->device.vid, &msg);
 	if (ret < 0) {
 err:
 		close(connfd);
