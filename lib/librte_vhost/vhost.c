@@ -316,7 +316,7 @@ reset_device(struct virtio_net *dev)
  * there is a new virtio device being attached).
  */
 int
-vhost_new_device(void)
+vhost_new_device(const struct vhost_transport_ops *trans_ops)
 {
 	struct virtio_net *dev;
 	int i;
@@ -343,7 +343,7 @@ vhost_new_device(void)
 	dev->vid = i;
 	dev->flags = VIRTIO_DEV_BUILTIN_VIRTIO_NET;
 	dev->slave_req_fd = -1;
-	dev->trans_ops = &af_unix_trans_ops;
+	dev->trans_ops = trans_ops;
 	dev->vdpa_dev_id = -1;
 	dev->postcopy_ufd = -1;
 	rte_spinlock_init(&dev->slave_req_lock);
