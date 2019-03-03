@@ -79,7 +79,7 @@ static void vhost_user_read_cb(int connfd, void *dat, int *remove);
  * return bytes# of read on success or negative val on failure. Update fdnum
  * with number of fds read.
  */
-int
+static int
 read_fd_message(int sockfd, char *buf, int buflen, int *fds, int max_fds,
 		int *fd_num)
 {
@@ -130,8 +130,8 @@ read_fd_message(int sockfd, char *buf, int buflen, int *fds, int max_fds,
 	return ret;
 }
 
-int
-send_fd_message(int sockfd, char *buf, int buflen, int *fds, int fd_num)
+static int
+send_fd_message(int sockfd, void *buf, int buflen, int *fds, int fd_num)
 {
 	struct iovec iov;
 	struct msghdr msgh;
@@ -175,6 +175,23 @@ send_fd_message(int sockfd, char *buf, int buflen, int *fds, int fd_num)
 	}
 
 	return ret;
+}
+
+static int
+af_unix_send_reply(struct virtio_net *dev, struct VhostUserMsg *msg)
+{
+	struct vhost_user_connection *conn =
+		container_of(dev, struct vhost_user_connection, device);
+
+	return send_fd_message(conn->connfd, msg,
+			       VHOST_USER_HDR_SIZE + msg->size, msg->fds, msg->fd_num);
+}
+
+static int
+af_unix_send_slave_req(struct virtio_net *dev, struct VhostUserMsg *msg)
+{
+	return send_fd_message(dev->slave_req_fd, msg,
+			       VHOST_USER_HDR_SIZE + msg->size, msg->fds, msg->fd_num);
 }
 
 static void
@@ -260,6 +277,36 @@ vhost_user_server_new_connection(int fd, void *dat, int *remove __rte_unused)
 	vhost_user_add_connection(fd, vsocket);
 }
 
+/* return bytes# of read on success or negative val on failure. */
+int
+read_vhost_message(int sockfd, struct VhostUserMsg *msg)
+{
+	int ret;
+
+	ret = read_fd_message(sockfd, (char *)msg, VHOST_USER_HDR_SIZE,
+		msg->fds, VHOST_MEMORY_MAX_NREGIONS, &msg->fd_num);
+	if (ret <= 0)
+		return ret;
+
+	if (msg->size) {
+		if (msg->size > sizeof(msg->payload)) {
+			RTE_LOG(ERR, VHOST_CONFIG,
+				"invalid msg size: %d\n", msg->size);
+			return -1;
+		}
+		ret = read(sockfd, &msg->payload, msg->size);
+		if (ret <= 0)
+			return ret;
+		if (ret != (int)msg->size) {
+			RTE_LOG(ERR, VHOST_CONFIG,
+				"read control message failed\n");
+			return -1;
+		}
+	}
+
+	return ret;
+}
+
 static void
 vhost_user_read_cb(int connfd, void *dat, int *remove)
 {
@@ -267,10 +314,23 @@ vhost_user_read_cb(int connfd, void *dat, int *remove)
 	struct vhost_user_socket *vsocket = conn->vsocket;
 	struct af_unix_socket *s =
 		container_of(vsocket, struct af_unix_socket, socket);
+	struct VhostUserMsg msg;
 	int ret;
 
-	ret = vhost_user_msg_handler(conn->device.vid, connfd);
+	ret = read_vhost_message(connfd, &msg);
+	if (ret <= 0) {
+		if (ret < 0)
+			RTE_LOG(ERR, VHOST_CONFIG,
+				"vhost read message failed\n");
+		else if (ret == 0)
+			RTE_LOG(INFO, VHOST_CONFIG,
+				"vhost peer closed\n");
+		goto err;
+	}
+
+	ret = vhost_user_msg_handler(conn->device.vid, connfd, &msg);
 	if (ret < 0) {
+err:
 		close(connfd);
 		*remove = 1;
 
@@ -667,4 +727,6 @@ const struct vhost_transport_ops af_unix_trans_ops = {
 	.socket_cleanup = af_unix_socket_cleanup,
 	.socket_start = af_unix_socket_start,
 	.vring_call = af_unix_vring_call,
+	.send_reply = af_unix_send_reply,
+	.send_slave_req = af_unix_send_slave_req,
 };
