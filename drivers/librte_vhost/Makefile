@@ -25,6 +25,7 @@ LDLIBS += -lrte_eal -lrte_mempool -lrte_mbuf -lrte_ethdev -lrte_net
 SRCS-$(CONFIG_RTE_LIBRTE_VHOST) := fd_man.c iotlb.c socket.c vhost.c \
 					vhost_user.c virtio_net.c vdpa.c \
 					trans_af_unix.c \
+					trans_virtio_vhost_user.c \
 					virtio_pci.c
 
 # install includes
