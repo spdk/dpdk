@@ -160,11 +160,6 @@ vhost_backend_cleanup(struct virtio_net *dev)
 		dev->log_addr = 0;
 	}
 
-	if (dev->slave_req_fd >= 0) {
-		close(dev->slave_req_fd);
-		dev->slave_req_fd = -1;
-	}
-
 	if (dev->postcopy_ufd >= 0) {
 		close(dev->postcopy_ufd);
 		dev->postcopy_ufd = -1;
@@ -1545,17 +1540,13 @@ static int
 vhost_user_set_req_fd(struct virtio_net **pdev, struct VhostUserMsg *msg,
 			int main_fd __rte_unused)
 {
+	int ret;
 	struct virtio_net *dev = *pdev;
-	int fd = msg->fds[0];
 
-	if (fd < 0) {
-		RTE_LOG(ERR, VHOST_CONFIG,
-				"Invalid file descriptor for slave channel (%d)\n",
-				fd);
+	ret = dev->trans_ops->set_slave_req_fd(dev, msg);
+
+	if (ret < 0)
 		return RTE_VHOST_MSG_RESULT_ERR;
-	}
-
-	dev->slave_req_fd = fd;
 
 	return RTE_VHOST_MSG_RESULT_OK;
 }
@@ -1772,21 +1763,6 @@ send_vhost_reply(struct virtio_net *dev, struct VhostUserMsg *msg)
 	msg->flags |= VHOST_USER_REPLY_MASK;
 
 	return dev->trans_ops->send_reply(dev, msg);
-}
-
-static int
-send_vhost_slave_message(struct virtio_net *dev, struct VhostUserMsg *msg)
-{
-	int ret;
-
-	if (msg->flags & VHOST_USER_NEED_REPLY)
-		rte_spinlock_lock(&dev->slave_req_lock);
-
-	ret = dev->trans_ops->send_slave_req(dev, msg);
-	if (ret < 0 && (msg->flags & VHOST_USER_NEED_REPLY))
-		rte_spinlock_unlock(&dev->slave_req_lock);
-
-	return ret;
 }
 
 /*
@@ -2065,35 +2041,6 @@ skip_to_post_handle:
 	return 0;
 }
 
-static int process_slave_message_reply(struct virtio_net *dev,
-				       const struct VhostUserMsg *msg)
-{
-	struct VhostUserMsg msg_reply;
-	int ret;
-
-	if ((msg->flags & VHOST_USER_NEED_REPLY) == 0)
-		return 0;
-
-	if (read_vhost_message(dev->slave_req_fd, &msg_reply) < 0) {
-		ret = -1;
-		goto out;
-	}
-
-	if (msg_reply.request.slave != msg->request.slave) {
-		RTE_LOG(ERR, VHOST_CONFIG,
-			"Received unexpected msg type (%u), expected %u\n",
-			msg_reply.request.slave, msg->request.slave);
-		ret = -1;
-		goto out;
-	}
-
-	ret = msg_reply.payload.u64 ? -1 : 0;
-
-out:
-	rte_spinlock_unlock(&dev->slave_req_lock);
-	return ret;
-}
-
 int
 vhost_user_iotlb_miss(struct virtio_net *dev, uint64_t iova, uint8_t perm)
 {
@@ -2109,7 +2056,7 @@ vhost_user_iotlb_miss(struct virtio_net *dev, uint64_t iova, uint8_t perm)
 		},
 	};
 
-	ret = send_vhost_slave_req(dev, &msg);
+	ret = dev->trans_ops->send_slave_req(dev, &msg);
 	if (ret < 0) {
 		RTE_LOG(ERR, VHOST_CONFIG,
 				"Failed to send IOTLB miss message (%d)\n",
@@ -2144,14 +2091,14 @@ static int vhost_user_slave_set_vring_host_notifier(struct virtio_net *dev,
 		msg.fd_num = 1;
 	}
 
-	ret = send_vhost_slave_message(dev, &msg);
+	ret = dev->trans_ops->send_slave_req(dev, &msg);
 	if (ret < 0) {
 		RTE_LOG(ERR, VHOST_CONFIG,
 			"Failed to set host notifier (%d)\n", ret);
 		return ret;
 	}
 
-	return process_slave_message_reply(dev, &msg);
+	return dev->trans_ops->process_slave_message_reply(dev, &msg);
 }
 
 int rte_vhost_host_notifier_ctrl(int vid, bool enable)
