@@ -2,6 +2,7 @@
  * Copyright(c) 2010-2017 Intel Corporation
  */
 
+#include <getopt.h>
 #include <stdint.h>
 #include <unistd.h>
 #include <stdbool.h>
@@ -396,26 +397,10 @@ static const struct vhost_device_ops vhost_scsi_device_ops = {
 };
 
 static struct vhost_scsi_ctrlr *
-vhost_scsi_ctrlr_construct(const char *ctrlr_name)
+vhost_scsi_ctrlr_construct(void)
 {
 	int ret;
 	struct vhost_scsi_ctrlr *ctrlr;
-	char *path;
-	char cwd[PATH_MAX];
-
-	/* always use current directory */
-	path = getcwd(cwd, PATH_MAX);
-	if (!path) {
-		fprintf(stderr, "Cannot get current working directory\n");
-		return NULL;
-	}
-	snprintf(dev_pathname, sizeof(dev_pathname), "%s/%s", path, ctrlr_name);
-
-	if (access(dev_pathname, F_OK) != -1) {
-		if (unlink(dev_pathname) != 0)
-			rte_exit(EXIT_FAILURE, "Cannot remove %s.\n",
-				 dev_pathname);
-	}
 
 	if (rte_vhost_driver_register(dev_pathname, 0) != 0) {
 		fprintf(stderr, "socket %s already exists\n", dev_pathname);
@@ -449,6 +434,71 @@ signal_handler(__rte_unused int signum)
 	exit(0);
 }
 
+static void
+set_dev_pathname(const char *path)
+{
+	if (dev_pathname[0])
+		rte_exit(EXIT_FAILURE, "--socket-file can only be given once.\n");
+
+	snprintf(dev_pathname, sizeof(dev_pathname), "%s", path);
+}
+
+static void
+vhost_scsi_usage(const char *prgname)
+{
+	fprintf(stderr, "%s [EAL options] --\n"
+	"    --socket-file PATH: The path of the UNIX domain socket\n",
+		prgname);
+}
+
+static void
+vhost_scsi_parse_args(int argc, char **argv)
+{
+	int opt;
+	int option_index;
+	const char *prgname = argv[0];
+	static struct option long_option[] = {
+		{"socket-file", required_argument, NULL, 0},
+		{NULL, 0, 0, 0},
+	};
+
+	while ((opt = getopt_long(argc, argv, "", long_option,
+				  &option_index)) != -1) {
+		switch (opt) {
+		case 0:
+			if (!strcmp(long_option[option_index].name,
+				    "socket-file")) {
+				set_dev_pathname(optarg);
+			}
+			break;
+		default:
+			vhost_scsi_usage(prgname);
+			rte_exit(EXIT_FAILURE, "Invalid argument\n");
+		}
+	}
+}
+
+static void
+vhost_scsi_set_default_dev_pathname(void)
+{
+	char *path;
+	char cwd[PATH_MAX];
+
+	/* always use current directory */
+	path = getcwd(cwd, PATH_MAX);
+	if (!path) {
+		rte_exit(EXIT_FAILURE,
+			 "Cannot get current working directory\n");
+	}
+	snprintf(dev_pathname, sizeof(dev_pathname), "%s/vhost.socket", path);
+
+	if (access(dev_pathname, F_OK) != -1) {
+		if (unlink(dev_pathname) != 0)
+			rte_exit(EXIT_FAILURE, "Cannot remove %s.\n",
+				 dev_pathname);
+	}
+}
+
 int main(int argc, char *argv[])
 {
 	int ret;
@@ -459,8 +509,15 @@ int main(int argc, char *argv[])
 	ret = rte_eal_init(argc, argv);
 	if (ret < 0)
 		rte_exit(EXIT_FAILURE, "Error with EAL initialization\n");
+	argc -= ret;
+	argv += ret;
 
-	g_vhost_ctrlr = vhost_scsi_ctrlr_construct("vhost.socket");
+	vhost_scsi_parse_args(argc, argv);
+
+	if (!dev_pathname[0])
+		vhost_scsi_set_default_dev_pathname();
+
+	g_vhost_ctrlr = vhost_scsi_ctrlr_construct();
 	if (g_vhost_ctrlr == NULL) {
 		fprintf(stderr, "Construct vhost scsi controller failed\n");
 		return 0;
