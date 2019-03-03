@@ -5,7 +5,14 @@
  */
 
 #include <sys/socket.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
 #include <sys/un.h>
+#include <sys/types.h>
+#include <sys/ioctl.h>
+#ifdef RTE_LIBRTE_VHOST_POSTCOPY
+#include <linux/userfaultfd.h>
+#endif
 #include <fcntl.h>
 
 #include <rte_log.h>
@@ -43,7 +50,7 @@ struct af_unix_socket {
 	struct sockaddr_un un;
 };
 
-int read_vhost_message(int sockfd, struct VhostUserMsg *msg);
+static int read_vhost_message(int sockfd, struct VhostUserMsg *msg);
 static int create_unix_socket(struct vhost_user_socket *vsocket);
 static int vhost_user_start_server(struct vhost_user_socket *vsocket);
 static int vhost_user_start_client(struct vhost_user_socket *vsocket);
@@ -317,7 +324,7 @@ vhost_user_server_new_connection(int fd, void *dat, int *remove __rte_unused)
 }
 
 /* return bytes# of read on success or negative val on failure. */
-int
+static int
 read_vhost_message(int sockfd, struct VhostUserMsg *msg)
 {
 	int ret;
@@ -771,6 +778,178 @@ af_unix_vring_call(struct virtio_net *dev __rte_unused,
 	return 0;
 }
 
+static uint64_t
+get_blk_size(int fd)
+{
+	struct stat stat;
+	int ret;
+
+	ret = fstat(fd, &stat);
+	return ret == -1 ? (uint64_t)-1 : (uint64_t)stat.st_blksize;
+}
+
+static int
+af_unix_map_mem_regions(struct virtio_net *dev, struct VhostUserMsg *msg)
+{
+	uint32_t i;
+	struct VhostUserMemory *memory = &msg->payload.memory;
+	struct vhost_user_connection *conn =
+		container_of(dev, struct vhost_user_connection, device);
+
+	for (i = 0; i < dev->mem->nregions; i++) {
+		struct rte_vhost_mem_region *reg = &dev->mem->regions[i];
+		uint64_t mmap_size = reg->mmap_size;
+		uint64_t mmap_offset = mmap_size - reg->size;
+		uint64_t alignment;
+		void *mmap_addr;
+		int populate;
+
+		/* mmap() without flag of MAP_ANONYMOUS, should be called
+		 * with length argument aligned with hugepagesz at older
+		 * longterm version Linux, like 2.6.32 and 3.2.72, or
+		 * mmap() will fail with EINVAL.
+		 *
+		 * to avoid failure, make sure in caller to keep length
+		 * aligned.
+		 */
+		alignment = get_blk_size(reg->fd);
+		if (alignment == (uint64_t)-1) {
+			RTE_LOG(ERR, VHOST_CONFIG,
+				"couldn't get hugepage size through fstat\n");
+			return -1;
+		}
+		mmap_size = RTE_ALIGN_CEIL(mmap_size, alignment);
+
+		populate = (dev->dequeue_zero_copy) ? MAP_POPULATE : 0;
+		mmap_addr = mmap(NULL, mmap_size, PROT_READ | PROT_WRITE,
+				 MAP_SHARED | populate, reg->fd, 0);
+
+		if (mmap_addr == MAP_FAILED) {
+			RTE_LOG(ERR, VHOST_CONFIG,
+				"mmap region %u failed.\n", i);
+			return -1;
+		}
+
+		reg->mmap_addr = mmap_addr;
+		reg->mmap_size = mmap_size;
+		reg->host_user_addr = (uint64_t)(uintptr_t)reg->mmap_addr +
+				      mmap_offset;
+
+		if (dev->dequeue_zero_copy)
+			if (add_guest_pages(dev, reg, alignment) < 0) {
+				RTE_LOG(ERR, VHOST_CONFIG,
+					"adding guest pages to region %u failed.\n",
+					i);
+				return -1;
+			}
+
+		RTE_LOG(INFO, VHOST_CONFIG,
+			"guest memory region %u, size: 0x%" PRIx64 "\n"
+			"\t guest physical addr: 0x%" PRIx64 "\n"
+			"\t guest virtual  addr: 0x%" PRIx64 "\n"
+			"\t host  virtual  addr: 0x%" PRIx64 "\n"
+			"\t mmap addr : 0x%" PRIx64 "\n"
+			"\t mmap size : 0x%" PRIx64 "\n"
+			"\t mmap align: 0x%" PRIx64 "\n"
+			"\t mmap off  : 0x%" PRIx64 "\n",
+			i, reg->size,
+			reg->guest_phys_addr,
+			reg->guest_user_addr,
+			reg->host_user_addr,
+			(uint64_t)(uintptr_t)reg->mmap_addr,
+			reg->mmap_size,
+			alignment,
+			mmap_offset);
+
+		if (dev->postcopy_listening) {
+			/*
+			 * We haven't a better way right now than sharing
+			 * DPDK's virtual address with Qemu, so that Qemu can
+			 * retrieve the region offset when handling userfaults.
+			 */
+			memory->regions[i].userspace_addr =
+				reg->host_user_addr;
+		}
+	}
+
+	if (dev->postcopy_listening) {
+		/* Send the addresses back to qemu */
+		msg->fd_num = 0;
+		/* Send reply */
+		msg->flags &= ~VHOST_USER_VERSION_MASK;
+		msg->flags &= ~VHOST_USER_NEED_REPLY;
+		msg->flags |= VHOST_USER_VERSION;
+		msg->flags |= VHOST_USER_REPLY_MASK;
+		af_unix_send_reply(dev, msg);
+
+		/* Wait for qemu to acknolwedge it's got the addresses
+		 * we've got to wait before we're allowed to generate faults.
+		 */
+		VhostUserMsg ack_msg;
+		if (read_vhost_message(conn->connfd, &ack_msg) <= 0) {
+			RTE_LOG(ERR, VHOST_CONFIG,
+				"Failed to read qemu ack on postcopy set-mem-table\n");
+			return -1;
+		}
+		if (ack_msg.request.master != VHOST_USER_SET_MEM_TABLE) {
+			RTE_LOG(ERR, VHOST_CONFIG,
+				"Bad qemu ack on postcopy set-mem-table (%d)\n",
+				ack_msg.request.master);
+			return -1;
+		}
+
+		/* Now userfault register and we can use the memory */
+		for (i = 0; i < memory->nregions; i++) {
+#ifdef RTE_LIBRTE_VHOST_POSTCOPY
+			reg = &dev->mem->regions[i];
+			struct uffdio_register reg_struct;
+
+			/*
+			 * Let's register all the mmap'ed area to ensure
+			 * alignment on page boundary.
+			 */
+			reg_struct.range.start =
+				(uint64_t)(uintptr_t)reg->mmap_addr;
+			reg_struct.range.len = reg->mmap_size;
+			reg_struct.mode = UFFDIO_REGISTER_MODE_MISSING;
+
+			if (ioctl(dev->postcopy_ufd, UFFDIO_REGISTER,
+						&reg_struct)) {
+				RTE_LOG(ERR, VHOST_CONFIG,
+					"Failed to register ufd for region %d: (ufd = %d) %s\n",
+					i, dev->postcopy_ufd,
+					strerror(errno));
+				return -1;
+			}
+			RTE_LOG(INFO, VHOST_CONFIG,
+				"\t userfaultfd registered for range : %llx - %llx\n",
+				reg_struct.range.start,
+				reg_struct.range.start +
+				reg_struct.range.len - 1);
+#else
+			return -1;
+#endif
+		}
+	}
+
+	return 0;
+}
+
+static void
+af_unix_unmap_mem_regions(struct virtio_net *dev)
+{
+	uint32_t i;
+	struct rte_vhost_mem_region *reg;
+
+	for (i = 0; i < dev->mem->nregions; i++) {
+		reg = &dev->mem->regions[i];
+		if (reg->host_user_addr) {
+			munmap(reg->mmap_addr, reg->mmap_size);
+			close(reg->fd);
+		}
+	}
+}
+
 const struct vhost_transport_ops af_unix_trans_ops = {
 	.socket_size = sizeof(struct af_unix_socket),
 	.device_size = sizeof(struct vhost_user_connection),
@@ -783,4 +962,6 @@ const struct vhost_transport_ops af_unix_trans_ops = {
 	.send_slave_req = af_unix_send_slave_req,
 	.process_slave_message_reply = af_unix_process_slave_message_reply,
 	.set_slave_req_fd = af_unix_set_slave_req_fd,
+	.map_mem_regions = af_unix_map_mem_regions,
+	.unmap_mem_regions = af_unix_unmap_mem_regions,
 };
