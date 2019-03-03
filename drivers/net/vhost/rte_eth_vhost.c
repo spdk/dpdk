@@ -31,6 +31,7 @@ enum {VIRTIO_RXQ, VIRTIO_TXQ, VIRTIO_QNUM};
 #define ETH_VHOST_DEQUEUE_ZERO_COPY	"dequeue-zero-copy"
 #define ETH_VHOST_IOMMU_SUPPORT		"iommu-support"
 #define ETH_VHOST_POSTCOPY_SUPPORT	"postcopy-support"
+#define ETH_VHOST_VIRTIO_TRANSPORT	"virtio-transport"
 #define VHOST_MAX_PKT_BURST 32
 
 static const char *valid_arguments[] = {
@@ -40,6 +41,7 @@ static const char *valid_arguments[] = {
 	ETH_VHOST_DEQUEUE_ZERO_COPY,
 	ETH_VHOST_IOMMU_SUPPORT,
 	ETH_VHOST_POSTCOPY_SUPPORT,
+	ETH_VHOST_VIRTIO_TRANSPORT,
 	NULL
 };
 
@@ -1338,6 +1340,7 @@ rte_pmd_vhost_probe(struct rte_vdev_device *dev)
 	int dequeue_zero_copy = 0;
 	int iommu_support = 0;
 	int postcopy_support = 0;
+	uint16_t virtio_transport = 0;
 	struct rte_eth_dev *eth_dev;
 	const char *name = rte_vdev_device_name(dev);
 
@@ -1417,6 +1420,16 @@ rte_pmd_vhost_probe(struct rte_vdev_device *dev)
 
 		if (postcopy_support)
 			flags |= RTE_VHOST_USER_POSTCOPY_SUPPORT;
+	}
+
+	if (rte_kvargs_count(kvlist, ETH_VHOST_VIRTIO_TRANSPORT) == 1) {
+		ret = rte_kvargs_process(kvlist, ETH_VHOST_VIRTIO_TRANSPORT,
+					 &open_int, &virtio_transport);
+		if (ret < 0)
+			goto out_free;
+
+		if (virtio_transport)
+			flags |= RTE_VHOST_USER_VIRTIO_TRANSPORT;
 	}
 
 	if (dev->device.numa_node == SOCKET_ID_ANY)
