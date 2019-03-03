@@ -107,6 +107,7 @@ struct vhost_virtqueue {
 		struct vring_packed_desc_event *device_event;
 	};
 	uint32_t		size;
+	uint32_t		vring_idx;
 
 	uint16_t		last_avail_idx;
 	uint16_t		last_used_idx;
