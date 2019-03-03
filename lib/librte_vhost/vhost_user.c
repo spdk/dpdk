@@ -257,6 +257,7 @@ vhost_user_set_features(struct virtio_net **pdev, struct VhostUserMsg *msg)
 		(dev->features & (1 << VIRTIO_NET_F_MRG_RXBUF)) ? "on" : "off",
 		(dev->features & (1ULL << VIRTIO_F_VERSION_1)) ? "on" : "off");
 
+#if 0
 	if ((dev->flags & VIRTIO_DEV_BUILTIN_VIRTIO_NET) &&
 	    !(dev->features & (1ULL << VIRTIO_NET_F_MQ))) {
 		/*
@@ -276,6 +277,7 @@ vhost_user_set_features(struct virtio_net **pdev, struct VhostUserMsg *msg)
 			free_vq(dev, vq);
 		}
 	}
+#endif
 
 	did = dev->vdpa_dev_id;
 	vdpa_dev = rte_vdpa_get_device(did);
