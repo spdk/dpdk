@@ -543,8 +543,5 @@ rte_vhost_driver_start(const char *path)
 		}
 	}
 
-	if (vsocket->is_server)
-		return vhost_user_start_server(vsocket);
-	else
-		return vhost_user_start_client(vsocket);
+	return vsocket->trans_ops->socket_start(vsocket);
 }
