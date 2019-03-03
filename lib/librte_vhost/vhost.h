@@ -340,6 +340,16 @@ struct vhost_transport_ops {
 	int (*socket_start)(struct vhost_user_socket *vsocket);
 
 	/**
+	* Free resources associated with this device.
+	*
+	* @param dev
+	*  vhost device
+	* @param destroy
+	*  0 on device reset, 1 on full cleanup.
+	*/
+	void (*cleanup_device)(struct virtio_net *dev, int destroy);
+
+	/**
 	 * Notify the guest that used descriptors have been added to the vring.
 	 * The VRING_AVAIL_F_NO_INTERRUPT flag and event idx have already been checked
 	 * so this function just needs to perform the notification.
@@ -377,6 +387,34 @@ struct vhost_transport_ops {
 	 */
 	int (*send_slave_req)(struct virtio_net *dev,
 			      struct VhostUserMsg *req);
+
+	/**
+	 * Process the master's reply on a slave request.
+	 *
+	 * @param dev
+	 *  vhost device
+	 * @param msg
+	 *  slave request message
+	 * @return
+	 *  0 on success, -1 on failure
+	 */
+	int (*process_slave_message_reply)(struct virtio_net *dev,
+					   const struct VhostUserMsg *msg);
+
+	/**
+	 * Process VHOST_USER_SET_SLAVE_REQ_FD message.  After this function
+	 * succeeds send_slave_req() may be called to submit requests to the
+	 * master.
+	 *
+	 * @param dev
+	 *  vhost device
+	 * @param msg
+	 *  message
+	 * @return
+	 *  0 on success, -1 on failure
+	 */
+	int (*set_slave_req_fd)(struct virtio_net *dev,
+				struct VhostUserMsg *msg);
 };
 
 /** The traditional AF_UNIX vhost-user protocol transport. */
@@ -418,9 +456,6 @@ struct virtio_net {
 	uint32_t		nr_guest_pages;
 	uint32_t		max_guest_pages;
 	struct guest_page       *guest_pages;
-
-	int			slave_req_fd;
-	rte_spinlock_t		slave_req_lock;
 
 	int			postcopy_ufd;
 	int			postcopy_listening;

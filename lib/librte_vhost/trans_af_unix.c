@@ -29,6 +29,8 @@ struct vhost_user_connection {
 	struct virtio_net device; /* must be the first field! */
 	struct vhost_user_socket *vsocket;
 	int connfd;
+	int slave_req_fd;
+	rte_spinlock_t slave_req_lock;
 
 	TAILQ_ENTRY(vhost_user_connection) next;
 };
@@ -41,6 +43,7 @@ struct af_unix_socket {
 	struct sockaddr_un un;
 };
 
+int read_vhost_message(int sockfd, struct VhostUserMsg *msg);
 static int create_unix_socket(struct vhost_user_socket *vsocket);
 static int vhost_user_start_server(struct vhost_user_socket *vsocket);
 static int vhost_user_start_client(struct vhost_user_socket *vsocket);
@@ -161,8 +164,71 @@ af_unix_send_reply(struct virtio_net *dev, struct VhostUserMsg *msg)
 static int
 af_unix_send_slave_req(struct virtio_net *dev, struct VhostUserMsg *msg)
 {
-	return send_fd_message(dev->slave_req_fd, msg,
-			       VHOST_USER_HDR_SIZE + msg->size, msg->fds, msg->fd_num);
+	struct vhost_user_connection *conn =
+		container_of(dev, struct vhost_user_connection, device);
+	int ret;
+
+	if (msg->flags & VHOST_USER_NEED_REPLY)
+		rte_spinlock_lock(&conn->slave_req_lock);
+
+	ret = send_fd_message(conn->slave_req_fd, msg,
+			VHOST_USER_HDR_SIZE + msg->size, msg->fds, msg->fd_num);
+
+	if (ret < 0 && (msg->flags & VHOST_USER_NEED_REPLY))
+		rte_spinlock_unlock(&conn->slave_req_lock);
+
+	return ret;
+}
+
+static int
+af_unix_process_slave_message_reply(struct virtio_net *dev,
+				    const struct VhostUserMsg *msg)
+{
+	struct vhost_user_connection *conn =
+		container_of(dev, struct vhost_user_connection, device);
+	struct VhostUserMsg msg_reply;
+	int ret;
+
+	if ((msg->flags & VHOST_USER_NEED_REPLY) == 0)
+		return 0;
+
+	if (read_vhost_message(conn->slave_req_fd, &msg_reply) < 0) {
+		ret = -1;
+		goto out;
+	}
+
+	if (msg_reply.request.slave != msg->request.slave) {
+		RTE_LOG(ERR, VHOST_CONFIG,
+			"Received unexpected msg type (%u), expected %u\n",
+			msg_reply.request.slave, msg->request.slave);
+		ret = -1;
+		goto out;
+	}
+
+	ret = msg_reply.payload.u64 ? -1 : 0;
+
+out:
+	rte_spinlock_unlock(&conn->slave_req_lock);
+	return ret;
+}
+
+static int
+af_unix_set_slave_req_fd(struct virtio_net *dev, struct VhostUserMsg *msg)
+{
+	struct vhost_user_connection *conn =
+		container_of(dev, struct vhost_user_connection, device);
+	int fd = msg->fds[0];
+
+	if (fd < 0) {
+		RTE_LOG(ERR, VHOST_CONFIG,
+				"Invalid file descriptor for slave channel (%d)\n",
+				fd);
+		return -1;
+	}
+
+	conn->slave_req_fd = fd;
+
+	return 0;
 }
 
 static void
@@ -185,7 +251,9 @@ vhost_user_add_connection(int fd, struct vhost_user_socket *vsocket)
 
 	conn = container_of(dev, struct vhost_user_connection, device);
 	conn->connfd = fd;
+	conn->slave_req_fd = -1;
 	conn->vsocket = vsocket;
+	rte_spinlock_init(&conn->slave_req_lock);
 
 	size = strnlen(vsocket->path, PATH_MAX);
 	vhost_set_ifname(dev->vid, vsocket->path, size);
@@ -682,6 +750,18 @@ af_unix_socket_start(struct vhost_user_socket *vsocket)
 		return vhost_user_start_client(vsocket);
 }
 
+static void
+af_unix_cleanup_device(struct virtio_net *dev, int destroy __rte_unused)
+{
+	struct vhost_user_connection *conn =
+		container_of(dev, struct vhost_user_connection, device);
+
+	if (conn->slave_req_fd >= 0) {
+		close(conn->slave_req_fd);
+		conn->slave_req_fd = -1;
+	}
+}
+
 static int
 af_unix_vring_call(struct virtio_net *dev __rte_unused,
 		   struct vhost_virtqueue *vq)
@@ -697,7 +777,10 @@ const struct vhost_transport_ops af_unix_trans_ops = {
 	.socket_init = af_unix_socket_init,
 	.socket_cleanup = af_unix_socket_cleanup,
 	.socket_start = af_unix_socket_start,
+	.cleanup_device = af_unix_cleanup_device,
 	.vring_call = af_unix_vring_call,
 	.send_reply = af_unix_send_reply,
 	.send_slave_req = af_unix_send_slave_req,
+	.process_slave_message_reply = af_unix_process_slave_message_reply,
+	.set_slave_req_fd = af_unix_set_slave_req_fd,
 };

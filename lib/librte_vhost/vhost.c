@@ -92,6 +92,8 @@ cleanup_device(struct virtio_net *dev, int destroy)
 
 	for (i = 0; i < dev->nr_vring; i++)
 		cleanup_vq(dev->virtqueue[i], destroy);
+
+	dev->trans_ops->cleanup_device(dev, destroy);
 }
 
 void
@@ -344,11 +346,9 @@ vhost_new_device(const struct vhost_transport_ops *trans_ops)
 	vhost_devices[i] = dev;
 	dev->vid = i;
 	dev->flags = VIRTIO_DEV_BUILTIN_VIRTIO_NET;
-	dev->slave_req_fd = -1;
 	dev->trans_ops = trans_ops;
 	dev->vdpa_dev_id = -1;
 	dev->postcopy_ufd = -1;
-	rte_spinlock_init(&dev->slave_req_lock);
 
 	return dev;
 }
