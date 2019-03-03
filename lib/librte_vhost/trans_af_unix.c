@@ -26,9 +26,9 @@ static struct fdset af_unix_fdset = {
 TAILQ_HEAD(vhost_user_connection_list, vhost_user_connection);
 
 struct vhost_user_connection {
+	struct virtio_net device; /* must be the first field! */
 	struct vhost_user_socket *vsocket;
 	int connfd;
-	int vid;
 
 	TAILQ_ENTRY(vhost_user_connection) next;
 };
@@ -153,7 +153,7 @@ vhost_user_add_connection(int fd, struct vhost_user_socket *vsocket)
 {
 	struct af_unix_socket *af_vsocket =
 		container_of(vsocket, struct af_unix_socket, socket);
-	int vid;
+	struct virtio_net *dev;
 	size_t size;
 	struct vhost_user_connection *conn;
 	int ret;
@@ -161,31 +161,29 @@ vhost_user_add_connection(int fd, struct vhost_user_socket *vsocket)
 	if (vsocket == NULL)
 		return;
 
-	conn = malloc(sizeof(*conn));
-	if (conn == NULL) {
-		close(fd);
+	dev = vhost_new_device(vsocket->trans_ops);
+	if (!dev) {
 		return;
 	}
 
-	vid = vhost_new_device(vsocket->trans_ops);
-	if (vid == -1) {
-		goto err;
-	}
+	conn = container_of(dev, struct vhost_user_connection, device);
+	conn->connfd = fd;
+	conn->vsocket = vsocket;
 
 	size = strnlen(vsocket->path, PATH_MAX);
-	vhost_set_ifname(vid, vsocket->path, size);
+	vhost_set_ifname(dev->vid, vsocket->path, size);
 
-	vhost_set_builtin_virtio_net(vid, vsocket->use_builtin_virtio_net);
+	vhost_set_builtin_virtio_net(dev->vid, vsocket->use_builtin_virtio_net);
 
-	vhost_attach_vdpa_device(vid, vsocket->vdpa_dev_id);
+	vhost_attach_vdpa_device(dev->vid, vsocket->vdpa_dev_id);
 
 	if (vsocket->dequeue_zero_copy)
-		vhost_enable_dequeue_zero_copy(vid);
+		vhost_enable_dequeue_zero_copy(dev->vid);
 
-	RTE_LOG(INFO, VHOST_CONFIG, "new device, handle is %d\n", vid);
+	RTE_LOG(INFO, VHOST_CONFIG, "new device, handle is %d\n", dev->vid);
 
 	if (vsocket->notify_ops->new_connection) {
-		ret = vsocket->notify_ops->new_connection(vid);
+		ret = vsocket->notify_ops->new_connection(dev->vid);
 		if (ret < 0) {
 			RTE_LOG(ERR, VHOST_CONFIG,
 				"failed to add vhost user connection with fd %d\n",
@@ -194,9 +192,6 @@ vhost_user_add_connection(int fd, struct vhost_user_socket *vsocket)
 		}
 	}
 
-	conn->connfd = fd;
-	conn->vsocket = vsocket;
-	conn->vid = vid;
 	ret = fdset_add(&af_unix_fdset, fd, vhost_user_read_cb,
 			NULL, conn);
 	if (ret < 0) {
@@ -205,7 +200,7 @@ vhost_user_add_connection(int fd, struct vhost_user_socket *vsocket)
 			fd);
 
 		if (vsocket->notify_ops->destroy_connection)
-			vsocket->notify_ops->destroy_connection(conn->vid);
+			vsocket->notify_ops->destroy_connection(dev->vid);
 
 		goto err;
 	}
@@ -218,8 +213,8 @@ vhost_user_add_connection(int fd, struct vhost_user_socket *vsocket)
 	return;
 
 err:
-	free(conn);
-	close(fd);
+	close(conn->connfd);
+	vhost_destroy_device(dev->vid);
 }
 
 /* call back when there is new vhost-user connection from client  */
@@ -245,20 +240,19 @@ vhost_user_read_cb(int connfd, void *dat, int *remove)
 		container_of(vsocket, struct af_unix_socket, socket);
 	int ret;
 
-	ret = vhost_user_msg_handler(conn->vid, connfd);
+	ret = vhost_user_msg_handler(conn->device.vid, connfd);
 	if (ret < 0) {
 		close(connfd);
 		*remove = 1;
-		vhost_destroy_device(conn->vid);
 
 		if (vsocket->notify_ops->destroy_connection)
-			vsocket->notify_ops->destroy_connection(conn->vid);
+			vsocket->notify_ops->destroy_connection(conn->device.vid);
 
 		pthread_mutex_lock(&af_vsocket->conn_mutex);
 		TAILQ_REMOVE(&af_vsocket->conn_list, conn, next);
 		pthread_mutex_unlock(&af_vsocket->conn_mutex);
 
-		free(conn);
+		vhost_destroy_device(conn->device.vid);
 
 		if (vsocket->reconnect) {
 			create_unix_socket(vsocket);
@@ -586,9 +580,8 @@ again:
 			"free connfd = %d for device '%s'\n",
 			conn->connfd, vsocket->path);
 		close(conn->connfd);
-		vhost_destroy_device(conn->vid);
 		TAILQ_REMOVE(&af_vsocket->conn_list, conn, next);
-		free(conn);
+		vhost_destroy_device(conn->device.vid);
 	}
 	pthread_mutex_unlock(&af_vsocket->conn_mutex);
 
@@ -640,6 +633,7 @@ af_unix_vring_call(struct virtio_net *dev __rte_unused,
 
 const struct vhost_transport_ops af_unix_trans_ops = {
 	.socket_size = sizeof(struct af_unix_socket),
+	.device_size = sizeof(struct vhost_user_connection),
 	.socket_init = af_unix_socket_init,
 	.socket_cleanup = af_unix_socket_cleanup,
 	.socket_start = af_unix_socket_start,
