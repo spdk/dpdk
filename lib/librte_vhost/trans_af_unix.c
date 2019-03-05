@@ -763,6 +763,11 @@ af_unix_cleanup_device(struct virtio_net *dev, int destroy __rte_unused)
 	struct vhost_user_connection *conn =
 		container_of(dev, struct vhost_user_connection, device);
 
+	if (dev->log_addr) {
+		munmap((void *)(uintptr_t)dev->log_addr, dev->log_size);
+		dev->log_addr = 0;
+	}
+
 	if (conn->slave_req_fd >= 0) {
 		close(conn->slave_req_fd);
 		conn->slave_req_fd = -1;
@@ -950,6 +955,41 @@ af_unix_unmap_mem_regions(struct virtio_net *dev)
 	}
 }
 
+static int
+af_unix_set_log_base(struct virtio_net *dev, const struct VhostUserMsg *msg)
+{
+	int fd = msg->fds[0];
+	uint64_t size, off;
+	void *addr;
+
+	size = msg->payload.log.mmap_size;
+	off  = msg->payload.log.mmap_offset;
+
+	/*
+	 * mmap from 0 to workaround a hugepage mmap bug: mmap will
+	 * fail when offset is not page size aligned.
+	 */
+	addr = mmap(0, size + off, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	close(fd);
+	if (addr == MAP_FAILED) {
+		RTE_LOG(ERR, VHOST_CONFIG, "mmap log base failed!\n");
+		return -1;
+	}
+
+	/*
+	 * Free previously mapped log memory on occasionally
+	 * multiple VHOST_USER_SET_LOG_BASE.
+	 */
+	if (dev->log_addr) {
+		munmap((void *)(uintptr_t)dev->log_addr, dev->log_size);
+	}
+	dev->log_addr = (uint64_t)(uintptr_t)addr;
+	dev->log_base = dev->log_addr + off;
+	dev->log_size = size;
+
+	return 0;
+}
+
 const struct vhost_transport_ops af_unix_trans_ops = {
 	.socket_size = sizeof(struct af_unix_socket),
 	.device_size = sizeof(struct vhost_user_connection),
@@ -964,4 +1004,5 @@ const struct vhost_transport_ops af_unix_trans_ops = {
 	.set_slave_req_fd = af_unix_set_slave_req_fd,
 	.map_mem_regions = af_unix_map_mem_regions,
 	.unmap_mem_regions = af_unix_unmap_mem_regions,
+	.set_log_base = af_unix_set_log_base,
 };
