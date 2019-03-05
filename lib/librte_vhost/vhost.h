@@ -437,6 +437,19 @@ struct vhost_transport_ops {
 	 *  vhost device
 	 */
 	void (*unmap_mem_regions)(struct virtio_net *dev);
+
+	/**
+	 * Setup the log memory region.
+	 *
+	 * @param dev
+	 *  vhost device
+	 * @param msg
+	 *  message
+	 * @return
+	 *  0 on success, -1 on failure
+	 */
+	int (*set_log_base)(struct virtio_net *dev,
+			    const struct VhostUserMsg *msg);
 };
 
 /** The traditional AF_UNIX vhost-user protocol transport. */
