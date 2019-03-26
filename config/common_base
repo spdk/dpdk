@@ -525,7 +525,7 @@ CONFIG_RTE_LIBRTE_DPAA_MAX_CRYPTODEV=4
 #
 # Compile PMD for Cavium OCTEON TX crypto device
 #
-CONFIG_RTE_LIBRTE_PMD_OCTEONTX_CRYPTO=y
+CONFIG_RTE_LIBRTE_PMD_OCTEONTX_CRYPTO=n
 
 #
 # Compile PMD for QuickAssist based devices - see docs for details
@@ -542,7 +542,7 @@ CONFIG_RTE_PMD_QAT_COMP_IM_BUFFER_SIZE=65536
 #
 # Compile PMD for virtio crypto devices
 #
-CONFIG_RTE_LIBRTE_PMD_VIRTIO_CRYPTO=y
+CONFIG_RTE_LIBRTE_PMD_VIRTIO_CRYPTO=n
 #
 # Number of maximum virtio crypto devices
 #
@@ -581,12 +581,12 @@ CONFIG_RTE_LIBRTE_PMD_ZUC=n
 
 # Compile PMD for Crypto Scheduler device
 #
-CONFIG_RTE_LIBRTE_PMD_CRYPTO_SCHEDULER=y
+CONFIG_RTE_LIBRTE_PMD_CRYPTO_SCHEDULER=n
 
 #
 # Compile PMD for NULL Crypto device
 #
-CONFIG_RTE_LIBRTE_PMD_NULL_CRYPTO=y
+CONFIG_RTE_LIBRTE_PMD_NULL_CRYPTO=n
 
 #
 # Compile PMD for AMD CCP crypto device
