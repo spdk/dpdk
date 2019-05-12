@@ -197,11 +197,14 @@ vvu_vring_call(struct virtio_net *dev, struct vhost_virtqueue *vq)
 	struct vvu_connection *conn =
 		container_of(dev, struct vvu_connection, device);
 	struct vvu_socket *s = conn->s;
+	struct virtio_hw *hw = &s->pdev->hw;
 	uint16_t vq_idx = vq->vring_idx;
+	uint16_t *notify_addr = (void *)((uint8_t *)s->doorbells +
+				vq_idx * hw->doorbell_off_multiplier);
 
 	RTE_LOG(DEBUG, VHOST_CONFIG, "%s vq_idx %u\n", __func__, vq_idx);
 
-	rte_write16(rte_cpu_to_le_16(vq_idx), &s->doorbells[vq_idx]);
+	rte_write16(rte_cpu_to_le_16(vq_idx), notify_addr);
 	return 0;
 }
 
@@ -264,14 +267,14 @@ vvu_map_mem_regions(struct virtio_net *dev, struct VhostUserMsg *msg __rte_unuse
 	struct vvu_connection *conn =
 		container_of(dev, struct vvu_connection, device);
 	struct vvu_socket *s = conn->s;
-	struct rte_pci_device *pci_dev = s->pdev->pci_dev;
+	struct virtio_hw *hw = &s->pdev->hw;
 	uint8_t *mmap_addr;
 	uint32_t i;
 
-	/* Memory regions start after the doorbell registers */
-	mmap_addr = (uint8_t *)pci_dev->mem_resource[2].addr +
-		    RTE_ALIGN_CEIL((s->max_vhost_queues + 1 /* log fd */) *
-				   sizeof(uint16_t), 4096);
+	/* Get the starting address of vhost memory regions from
+	 * the shared memory virtio PCI capability
+	 */
+	mmap_addr = hw->shared_memory_cfg;
 
 	for (i = 0; i < dev->mem->nregions; i++) {
 		struct rte_vhost_mem_region *reg = &dev->mem->regions[i];
@@ -779,10 +782,14 @@ err_efd:
 static int
 vvu_virtio_pci_init_bar(struct vvu_socket *s)
 {
-	struct rte_pci_device *pci_dev = s->pdev->pci_dev;
+	struct virtio_hw *hw = &s->pdev->hw;
 	struct virtio_net *dev = NULL; /* just for sizeof() */
 
-	s->doorbells = pci_dev->mem_resource[2].addr;
+	/* Get the starting address of the doorbells from
+	 * the doorbell virtio PCI capability
+	 */
+	s->doorbells = hw->doorbell_base;
+
 	if (!s->doorbells) {
 		RTE_LOG(ERR, VHOST_CONFIG, "BAR 2 not availabled\n");
 		return -1;
