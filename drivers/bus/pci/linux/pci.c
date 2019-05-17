@@ -679,6 +679,12 @@ rte_pci_get_iommu_class(void)
 	if (!is_bound)
 		return RTE_IOVA_DC;
 
+	if (TAILQ_EMPTY(&rte_pci_bus.driver_list)) {
+		/* If no drivers are registered,
+		 * return don't care. */
+		return RTE_IOVA_DC;
+	}
+
 	has_iova_va = pci_one_device_has_iova_va();
 	is_bound_uio = pci_one_device_bound_uio();
 	iommu_no_va = !pci_devices_iommu_support_va();
