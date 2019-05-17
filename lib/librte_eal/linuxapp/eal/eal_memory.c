@@ -65,33 +65,7 @@
  * zone as well as a physical contiguous zone.
  */
 
-static bool phys_addrs_available = true;
-
 #define RANDOMIZE_VA_SPACE_FILE "/proc/sys/kernel/randomize_va_space"
-
-static void
-test_phys_addrs_available(void)
-{
-	uint64_t tmp = 0;
-	phys_addr_t physaddr;
-
-	if (!rte_eal_has_hugepages()) {
-		RTE_LOG(ERR, EAL,
-			"Started without hugepages support, physical addresses not available\n");
-		phys_addrs_available = false;
-		return;
-	}
-
-	physaddr = rte_mem_virt2phy(&tmp);
-	if (physaddr == RTE_BAD_PHYS_ADDR) {
-		if (rte_eal_iova_mode() == RTE_IOVA_PA)
-			RTE_LOG(ERR, EAL,
-				"Cannot obtain physical addresses: %s. "
-				"Only vfio will function.\n",
-				strerror(errno));
-		phys_addrs_available = false;
-	}
-}
 
 /*
  * Get physical address of any mapped virtual address in the current process.
@@ -106,7 +80,7 @@ rte_mem_virt2phy(const void *virtaddr)
 	off_t offset;
 
 	/* Cannot parse /proc/self/pagemap, no need to log errors everywhere */
-	if (!phys_addrs_available)
+	if (!rte_eal_using_phys_addrs())
 		return RTE_BAD_IOVA;
 
 	/* standard page size */
@@ -1335,8 +1309,6 @@ eal_legacy_hugepage_init(void)
 	int nr_hugefiles, nr_hugepages = 0;
 	void *addr;
 
-	test_phys_addrs_available();
-
 	memset(used_hp, 0, sizeof(used_hp));
 
 	/* get pointer to global configuration */
@@ -1515,7 +1487,7 @@ eal_legacy_hugepage_init(void)
 				continue;
 		}
 
-		if (phys_addrs_available &&
+		if (rte_eal_using_phys_addrs() &&
 				rte_eal_iova_mode() != RTE_IOVA_VA) {
 			/* find physical addresses for each hugepage */
 			if (find_physaddrs(&tmp_hp[hp_offset], hpi) < 0) {
@@ -1734,8 +1706,6 @@ eal_hugepage_init(void)
 	uint64_t memory[RTE_MAX_NUMA_NODES];
 	int hp_sz_idx, socket_id;
 
-	test_phys_addrs_available();
-
 	memset(used_hp, 0, sizeof(used_hp));
 
 	for (hp_sz_idx = 0;
@@ -1860,8 +1830,6 @@ eal_legacy_hugepage_attach(void)
 		RTE_LOG(WARNING, EAL, "   This may cause issues with mapping memory "
 				"into secondary processes\n");
 	}
-
-	test_phys_addrs_available();
 
 	fd_hugepage = open(eal_hugepage_data_path(), O_RDONLY);
 	if (fd_hugepage < 0) {
@@ -2002,7 +1970,32 @@ rte_eal_hugepage_attach(void)
 int
 rte_eal_using_phys_addrs(void)
 {
-	return phys_addrs_available;
+	static int using_phys_addrs = -1;
+	uint64_t tmp = 0;
+	phys_addr_t physaddr;
+
+	if (using_phys_addrs != -1)
+		return using_phys_addrs;
+
+	/* Set the default to 1 */
+	using_phys_addrs = 1;
+
+	if (!rte_eal_has_hugepages()) {
+		RTE_LOG(ERR, EAL,
+			"Started without hugepages support, physical addresses not available\n");
+		using_phys_addrs = 0;
+		return using_phys_addrs;
+	}
+
+	physaddr = rte_mem_virt2phy(&tmp);
+	if (physaddr == RTE_BAD_PHYS_ADDR) {
+		if (rte_eal_iova_mode() == RTE_IOVA_PA)
+			RTE_LOG(ERR, EAL,
+				"Cannot obtain physical addresses. Only vfio will function.\n");
+		using_phys_addrs = 0;
+	}
+
+	return using_phys_addrs;
 }
 
 static int __rte_unused

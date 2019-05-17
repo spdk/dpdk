@@ -38,6 +38,7 @@
 #include <rte_debug.h>
 #include <rte_string_fns.h>
 #include <rte_errno.h>
+#include <rte_memory.h>
 
 #include "eal_private.h"
 
@@ -230,6 +231,11 @@ rte_bus_get_iommu_class(void)
 {
 	int mode = RTE_IOVA_DC;
 	struct rte_bus *bus;
+
+	if (!rte_eal_using_phys_addrs()) {
+		/* If physical addresses are not available, force RTE_IOVA_VA */
+		return RTE_IOVA_VA;
+	}
 
 	TAILQ_FOREACH(bus, &rte_bus_list, next) {
 
