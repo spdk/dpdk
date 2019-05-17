@@ -948,6 +948,7 @@ rte_eal_init(int argc, char **argv)
 	static char logid[PATH_MAX];
 	char cpuset[RTE_CPU_AFFINITY_STR_LEN];
 	char thread_name[RTE_MAX_THREAD_NAME_LEN];
+	enum rte_iova_mode iova_mode;
 
 	/* checks if the machine is adequate */
 	if (!rte_cpu_is_supported()) {
@@ -1031,18 +1032,29 @@ rte_eal_init(int argc, char **argv)
 
 	/* if no EAL option "--iova-mode=<pa|va>", use bus IOVA scheme */
 	if (internal_config.iova_mode == RTE_IOVA_DC) {
-		/* autodetect the IOVA mapping mode (default is RTE_IOVA_PA) */
-		rte_eal_get_configuration()->iova_mode =
-			rte_bus_get_iommu_class();
+		/* autodetect the IOVA mapping mode*/
+		iova_mode = rte_bus_get_iommu_class();
 
 		/* Workaround for KNI which requires physical address to work */
-		if (rte_eal_get_configuration()->iova_mode == RTE_IOVA_VA &&
+		if (iova_mode == RTE_IOVA_VA &&
 				rte_eal_check_module("rte_kni") == 1) {
-			rte_eal_get_configuration()->iova_mode = RTE_IOVA_PA;
+			iova_mode = RTE_IOVA_PA;
 			RTE_LOG(WARNING, EAL,
 				"Some devices want IOVA as VA but PA will be used because.. "
 				"KNI module inserted\n");
 		}
+
+		if (iova_mode == RTE_IOVA_DC) {
+			/* If the bus doesn't care, check if physical addresses are
+			 * accessible. */
+			if (rte_eal_using_phys_addrs()) {
+				iova_mode = RTE_IOVA_PA;
+			} else {
+				iova_mode = RTE_IOVA_VA;
+			}
+		}
+
+		rte_eal_get_configuration()->iova_mode = iova_mode;
 	} else {
 		rte_eal_get_configuration()->iova_mode =
 			internal_config.iova_mode;
