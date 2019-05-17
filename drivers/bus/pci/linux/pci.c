@@ -669,36 +669,41 @@ pci_devices_iommu_support_va(void)
 enum rte_iova_mode
 rte_pci_get_iommu_class(void)
 {
-	bool is_bound;
-	bool is_vfio_noiommu_enabled = true;
-	bool has_iova_va;
-	bool is_bound_uio;
-	bool iommu_no_va;
-
-	is_bound = pci_one_device_is_bound();
-	if (!is_bound)
+	if (!pci_one_device_is_bound()) {
+		/* If no devices are bound to placeholder
+		 * drivers, return don't care. */
 		return RTE_IOVA_DC;
+	}
+	if (TAILQ_EMPTY(&rte_pci_bus.driver_list)) {
+		/* If no drivers are registered,
+		 * return don't care. */
+		return RTE_IOVA_DC;
+	}
 
-	has_iova_va = pci_one_device_has_iova_va();
-	is_bound_uio = pci_one_device_bound_uio();
-	iommu_no_va = !pci_devices_iommu_support_va();
+	if (pci_one_device_bound_uio()) {
+		/* If any device is using uio,
+		 * require IOVA_PA */
+		return RTE_IOVA_PA;
+	}
+
+	if (!pci_devices_iommu_support_va()) {
+		/* If the IOMMU does not support va,
+		 * use IOVA_PA. */
+		return RTE_IOVA_PA;
+	}
+
 #ifdef VFIO_PRESENT
-	is_vfio_noiommu_enabled = rte_vfio_noiommu_is_enabled() == true ?
-					true : false;
+	if (rte_vfio_noiommu_is_enabled()) {
+		/* If vfio is in NOIOMMU mode,
+		 * use IOVA_PA. */
+		return RTE_IOVA_PA;
+	}
 #endif
 
-	if (has_iova_va && !is_bound_uio && !is_vfio_noiommu_enabled &&
-			!iommu_no_va)
+	if (pci_one_device_has_iova_va()) {
+		/* If at least one device wants
+		 * IOVA_VA, use that. */
 		return RTE_IOVA_VA;
-
-	if (has_iova_va) {
-		RTE_LOG(WARNING, EAL, "Some devices want iova as va but pa will be used because.. ");
-		if (is_vfio_noiommu_enabled)
-			RTE_LOG(WARNING, EAL, "vfio-noiommu mode configured\n");
-		if (is_bound_uio)
-			RTE_LOG(WARNING, EAL, "few device bound to UIO\n");
-		if (iommu_no_va)
-			RTE_LOG(WARNING, EAL, "IOMMU does not support IOVA as VA\n");
 	}
 
 	return RTE_IOVA_PA;

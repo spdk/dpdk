@@ -38,6 +38,7 @@
 #include <rte_debug.h>
 #include <rte_string_fns.h>
 #include <rte_errno.h>
+#include <rte_memory.h>
 
 #include "eal_private.h"
 
@@ -237,10 +238,6 @@ rte_bus_get_iommu_class(void)
 			mode |= bus->get_iommu_class();
 	}
 
-	if (mode != RTE_IOVA_VA) {
-		/* Use default IOVA mode */
-		mode = RTE_IOVA_PA;
-	}
 	return mode;
 }
 
