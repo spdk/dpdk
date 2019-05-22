@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "62a12fe5_e4734a96",
+        "filename": "lib/librte_eal/common/eal_common_bus.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 235,
+      "author": {
+        "id": 1011218
+      },
+      "writtenOn": "2019-05-22T05:39:21Z",
+      "side": 1,
+      "message": "There might be I/O buses other than PCI, which do not have anything like IOMMU and hence can\u0027t use RTE_IOVA_VA. If DPDK detects a device on such a bus, it\u0027s currently forced to use RTE_IOVA_PA and later on during EAL initialization it\u0027s actually expected to fail the entire init if those physical addresses can\u0027t be retrieved.\n\nI believe this patch will have a hard time getting approved to upstream DPDK.\n\nThinking about this a little bit more, I would suggest making rte_bus_get_iommu_class() return RTE_IOVA_DC (don\u0027t care) by default.\n\nThen in the eal init code we could do the following:\n\n/* if no EAL option \"--iova-mode\u003d\u003cpa|va\u003e\", use bus IOVA scheme */\nif (internal_config.iova_mode \u003d\u003d RTE_IOVA_DC) {\n\t/* autodetect the IOVA mapping mode */\n-\trte_eal_get_configuration()-\u003eiova_mode \u003d rte_bus_get_iommu_class();\n+\tiova_mode \u003d rte_bus_get_iommu_class();\n+\tif (iova_mode \u003d\u003d _DC) {\n+\t\t// no pagemap access \u003d\u003e use RTE_IOVA_VA\n+\t\t// use RTE_IOVA_PA by default\n\nThis seems less intrusive.\n\nFor SPDK case, rte_bus_get_iommu_class will always return _DC because there won\u0027t be any devices attached at the time of initialization.",
+      "revId": "5739015cc8b93119768d42f5cca4266fb70d6957",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": true
+    }
+  ]
+}
