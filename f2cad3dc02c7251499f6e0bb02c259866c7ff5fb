@@ -1,0 +1,44 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "53618ccf_f6f93f26",
+        "filename": "lib/librte_vhost/vhost.h",
+        "patchSetId": 2
+      },
+      "lineNbr": 442,
+      "author": {
+        "id": 1011218
+      },
+      "writtenOn": "2019-05-23T07:16:52Z",
+      "side": 1,
+      "message": "extra indent",
+      "range": {
+        "startLine": 442,
+        "startChar": 1,
+        "endLine": 442,
+        "endChar": 9
+      },
+      "revId": "f2cad3dc02c7251499f6e0bb02c259866c7ff5fb",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "a202044c_cc52e272",
+        "filename": "lib/librte_vhost/vhost.h",
+        "patchSetId": 2
+      },
+      "lineNbr": 450,
+      "author": {
+        "id": 1011218
+      },
+      "writtenOn": "2019-05-23T07:16:52Z",
+      "side": 1,
+      "message": "^",
+      "revId": "f2cad3dc02c7251499f6e0bb02c259866c7ff5fb",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": true
+    }
+  ]
+}
