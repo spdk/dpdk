@@ -598,12 +598,20 @@ rte_pci_get_iommu_class(void)
 		case RTE_KDRV_IGB_UIO:
 		case RTE_KDRV_UIO_GENERIC:
 		case RTE_KDRV_NIC_UIO:
-			/* If any device is bound to UIO, use IOVA_PA */
-			if (iova_mode == RTE_IOVA_VA) {
-				RTE_LOG(WARNING, EAL,
-					"Some devices supported IOVA as VA, but UIO device forcing PA.\n");
+			/* The device is bound to UIO. Check if we have a matching
+			 * driver for it. */
+			FOREACH_DRIVER_ON_PCIBUS(drv) {
+				if (!rte_pci_match(drv, dev))
+					continue;
+
+				/* A UIO device with a driver exists. Force PA. */
+				if (iova_mode == RTE_IOVA_VA) {
+					RTE_LOG(WARNING, EAL,
+						"Some devices supported IOVA as VA, but UIO device forcing PA.\n");
+				}
+				return RTE_IOVA_PA;
 			}
-			return RTE_IOVA_PA;
+			break;
 		case RTE_KDRV_VFIO:
 			/* The device is bound to VFIO. Check if we have a matching
 			 * driver for it. */
