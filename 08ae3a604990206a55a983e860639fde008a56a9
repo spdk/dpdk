@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "432ea26b_3b070fec",
+        "filename": "drivers/bus/pci/linux/pci.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 600,
+      "author": {
+        "id": 1010531
+      },
+      "writtenOn": "2019-05-28T14:59:52Z",
+      "side": 1,
+      "message": "I feel like this was just a bug in DPDK before. The old behavior is how DPDK works today.",
+      "revId": "08ae3a604990206a55a983e860639fde008a56a9",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": true
+    }
+  ]
+}
