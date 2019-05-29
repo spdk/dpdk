@@ -601,10 +601,8 @@ rte_pci_get_iommu_class(void)
 		if (pci_ignore_device(dev))
 			continue;
 
-		if (dev->kdrv == RTE_KDRV_UNKNOWN ||
-		    dev->kdrv == RTE_KDRV_NONE) {
-			continue;
-		} else {
+		if (dev->kdrv != RTE_KDRV_UNKNOWN &&
+		    dev->kdrv != RTE_KDRV_NONE) {
 			is_bound = true;
 			break;
 		}
