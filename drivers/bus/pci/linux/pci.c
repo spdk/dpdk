@@ -627,7 +627,13 @@ rte_pci_get_iommu_class(void)
 		case RTE_KDRV_UIO_GENERIC:
 		case RTE_KDRV_NIC_UIO:
 			is_bound = true;
-			is_bound_uio = true;
+			FOREACH_DRIVER_ON_PCIBUS(drv) {
+				if (!rte_pci_match(drv, dev))
+					continue;
+
+				is_bound_uio = true;
+				break;
+			}
 			break;
 
 		}
