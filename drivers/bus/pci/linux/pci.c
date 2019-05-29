@@ -589,10 +589,10 @@ rte_pci_get_iommu_class(void)
 	if (!is_bound)
 		return RTE_IOVA_DC;
 
-	FOREACH_DRIVER_ON_PCIBUS(drv) {
-		if (drv && drv->drv_flags & RTE_PCI_DRV_IOVA_AS_VA) {
-			FOREACH_DEVICE_ON_PCIBUS(dev) {
-				if (dev->kdrv == RTE_KDRV_VFIO &&
+	FOREACH_DEVICE_ON_PCIBUS(dev) {
+		if (dev->kdrv == RTE_KDRV_VFIO) {
+			FOREACH_DRIVER_ON_PCIBUS(drv) {
+				if (drv->drv_flags & RTE_PCI_DRV_IOVA_AS_VA &&
 				    rte_pci_match(drv, dev)) {
 					has_iova_va = true;
 					break;
@@ -631,8 +631,8 @@ rte_pci_get_iommu_class(void)
 	}
 
 	break_out = false;
-	FOREACH_DRIVER_ON_PCIBUS(drv) {
-		FOREACH_DEVICE_ON_PCIBUS(dev) {
+	FOREACH_DEVICE_ON_PCIBUS(dev) {
+		FOREACH_DRIVER_ON_PCIBUS(drv) {
 			if (!rte_pci_match(drv, dev))
 				continue;
 			/*
