@@ -597,8 +597,10 @@ rte_pci_get_iommu_class(void)
 	struct rte_pci_device *dev = NULL;
 	struct rte_pci_driver *drv = NULL;
 
-
 	FOREACH_DEVICE_ON_PCIBUS(dev) {
+		if (pci_ignore_device(dev))
+			continue;
+
 		if (dev->kdrv == RTE_KDRV_UNKNOWN ||
 		    dev->kdrv == RTE_KDRV_NONE) {
 			continue;
@@ -611,6 +613,9 @@ rte_pci_get_iommu_class(void)
 		return RTE_IOVA_DC;
 
 	FOREACH_DEVICE_ON_PCIBUS(dev) {
+		if (pci_ignore_device(dev))
+			continue;
+
 		if (dev->kdrv == RTE_KDRV_VFIO) {
 			FOREACH_DRIVER_ON_PCIBUS(drv) {
 				if (!rte_pci_match(drv, dev))
