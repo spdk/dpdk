@@ -601,12 +601,12 @@ rte_pci_get_iommu_class(void)
 		if (pci_ignore_device(dev))
 			continue;
 
-		if (dev->kdrv != RTE_KDRV_UNKNOWN &&
-		    dev->kdrv != RTE_KDRV_NONE) {
+		switch (dev->kdrv) {
+		case RTE_KDRV_UNKNOWN:
+		case RTE_KDRV_NONE:
+			break;
+		case RTE_KDRV_VFIO:
 			is_bound = true;
-		}
-
-		if (dev->kdrv == RTE_KDRV_VFIO) {
 			FOREACH_DRIVER_ON_PCIBUS(drv) {
 				if (!rte_pci_match(drv, dev))
 					continue;
@@ -622,11 +622,14 @@ rte_pci_get_iommu_class(void)
 					break;
 				}
 			}
-		}
-
-		if (dev->kdrv == RTE_KDRV_IGB_UIO ||
-		   dev->kdrv == RTE_KDRV_UIO_GENERIC) {
+			break;
+		case RTE_KDRV_IGB_UIO:
+		case RTE_KDRV_UIO_GENERIC:
+		case RTE_KDRV_NIC_UIO:
+			is_bound = true;
 			is_bound_uio = true;
+			break;
+
 		}
 	}
 
