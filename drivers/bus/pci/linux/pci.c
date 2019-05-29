@@ -560,6 +560,29 @@ pci_one_device_iommu_support_va(__rte_unused struct rte_pci_device *dev)
 }
 #endif
 
+static bool
+pci_ignore_device(struct rte_pci_device *dev)
+{
+	struct rte_devargs *devargs;
+
+	devargs = dev->device.devargs;
+
+	switch (rte_pci_bus.bus.conf.scan_mode) {
+	case RTE_BUS_SCAN_WHITELIST:
+		if (devargs && devargs->policy == RTE_DEV_WHITELISTED)
+			return false;
+		break;
+	case RTE_BUS_SCAN_UNDEFINED:
+	case RTE_BUS_SCAN_BLACKLIST:
+		if (devargs == NULL ||
+		    devargs->policy != RTE_DEV_BLACKLISTED)
+			return false;
+		break;
+	}
+
+	return true;
+}
+
 /*
  * Get iommu class of PCI devices on the bus.
  */
@@ -571,10 +594,9 @@ rte_pci_get_iommu_class(void)
 	bool has_iova_va = false;
 	bool is_bound_uio = false;
 	bool iommu_no_va = false;
-	bool need_check;
 	struct rte_pci_device *dev = NULL;
 	struct rte_pci_driver *drv = NULL;
-	struct rte_devargs *devargs;
+
 
 	FOREACH_DEVICE_ON_PCIBUS(dev) {
 		if (dev->kdrv == RTE_KDRV_UNKNOWN ||
@@ -612,23 +634,7 @@ rte_pci_get_iommu_class(void)
 	}
 
 	FOREACH_DEVICE_ON_PCIBUS(dev) {
-		devargs = dev->device.devargs;
-
-		need_check = false;
-		switch (rte_pci_bus.bus.conf.scan_mode) {
-		case RTE_BUS_SCAN_WHITELIST:
-			if (devargs && devargs->policy == RTE_DEV_WHITELISTED)
-				need_check = true;
-			break;
-		case RTE_BUS_SCAN_UNDEFINED:
-		case RTE_BUS_SCAN_BLACKLIST:
-			if (devargs == NULL ||
-			    devargs->policy != RTE_DEV_BLACKLISTED)
-				need_check = true;
-			break;
-		}
-
-		if (!need_check)
+		if (pci_ignore_device(dev))
 			continue;
 
 		if (dev->kdrv == RTE_KDRV_IGB_UIO ||
