@@ -46,6 +46,30 @@
       "revId": "baaedc6aad6babc58a954677cf840c61d9cacf33",
       "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
       "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "bd9ae3ec_90b10469",
+        "filename": "drivers/bus/pci/linux/pci.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 680,
+      "author": {
+        "id": 1011218
+      },
+      "writtenOn": "2019-05-29T17:26:40Z",
+      "side": 0,
+      "message": "Oh, okay.",
+      "parentUuid": "198f4b73_d2df893e",
+      "range": {
+        "startLine": 680,
+        "startChar": 9,
+        "endLine": 680,
+        "endChar": 20
+      },
+      "revId": "baaedc6aad6babc58a954677cf840c61d9cacf33",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": true
     }
   ]
 }
