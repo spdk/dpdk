@@ -571,7 +571,6 @@ rte_pci_get_iommu_class(void)
 	bool has_iova_va = false;
 	bool is_bound_uio = false;
 	bool iommu_no_va = false;
-	bool break_out;
 	bool need_check;
 	struct rte_pci_device *dev = NULL;
 	struct rte_pci_driver *drv = NULL;
@@ -592,8 +591,16 @@ rte_pci_get_iommu_class(void)
 	FOREACH_DEVICE_ON_PCIBUS(dev) {
 		if (dev->kdrv == RTE_KDRV_VFIO) {
 			FOREACH_DRIVER_ON_PCIBUS(drv) {
-				if (drv->drv_flags & RTE_PCI_DRV_IOVA_AS_VA &&
-				    rte_pci_match(drv, dev)) {
+				if (!rte_pci_match(drv, dev))
+					continue;
+
+				/*
+				* just one PCI device needs to be checked out because
+				* the IOMMU hardware is the same for all of them.
+				*/
+				iommu_no_va = !pci_one_device_iommu_support_va(dev);
+
+				if (drv->drv_flags & RTE_PCI_DRV_IOVA_AS_VA) {
 					has_iova_va = true;
 					break;
 				}
@@ -628,24 +635,6 @@ rte_pci_get_iommu_class(void)
 		   dev->kdrv == RTE_KDRV_UIO_GENERIC) {
 			is_bound_uio = true;
 		}
-	}
-
-	break_out = false;
-	FOREACH_DEVICE_ON_PCIBUS(dev) {
-		FOREACH_DRIVER_ON_PCIBUS(drv) {
-			if (!rte_pci_match(drv, dev))
-				continue;
-			/*
-			 * just one PCI device needs to be checked out because
-			 * the IOMMU hardware is the same for all of them.
-			 */
-			iommu_no_va = !pci_one_device_iommu_support_va(dev);
-			break_out = true;
-			break;
-		}
-
-		if (break_out)
-			break;
 	}
 
 #ifdef VFIO_PRESENT
