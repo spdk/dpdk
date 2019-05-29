@@ -589,49 +589,68 @@ pci_ignore_device(struct rte_pci_device *dev)
 enum rte_iova_mode
 rte_pci_get_iommu_class(void)
 {
-	bool is_bound = false;
-	bool is_vfio_noiommu_enabled = true;
-	bool has_iova_va = false;
-	bool is_bound_uio = false;
-	bool iommu_no_va = false;
-	struct rte_pci_device *dev = NULL;
-	struct rte_pci_driver *drv = NULL;
+	struct rte_pci_device *dev;
+	struct rte_pci_driver *drv;
+	struct rte_pci_addr *addr;
+	enum rte_iova_mode iova_mode;
+
+	iova_mode = RTE_IOVA_DC;
 
 	FOREACH_DEVICE_ON_PCIBUS(dev) {
 		if (pci_ignore_device(dev))
 			continue;
+
+		addr = &dev->addr;
 
 		switch (dev->kdrv) {
 		case RTE_KDRV_UNKNOWN:
 		case RTE_KDRV_NONE:
 			break;
 		case RTE_KDRV_VFIO:
-			is_bound = true;
 			FOREACH_DRIVER_ON_PCIBUS(drv) {
 				if (!rte_pci_match(drv, dev))
 					continue;
 
-				/*
-				* just one PCI device needs to be checked out because
-				* the IOMMU hardware is the same for all of them.
-				*/
-				iommu_no_va = !pci_one_device_iommu_support_va(dev);
+				if ((drv->drv_flags & RTE_PCI_DRV_IOVA_AS_VA) == 0)
+					continue;
 
-				if (drv->drv_flags & RTE_PCI_DRV_IOVA_AS_VA) {
-					has_iova_va = true;
-					break;
+				if (!pci_one_device_iommu_support_va(dev)) {
+					RTE_LOG(WARNING, EAL, "Device " PCI_PRI_FMT " wanted IOVA as VA, but ",
+						addr->domain, addr->bus, addr->devid, addr->function);
+					RTE_LOG(WARNING, EAL, "IOMMU does not support it.\n");
+					iova_mode = RTE_IOVA_PA;
+				}
+#ifdef VFIO_PRESENT
+				else if (rte_vfio_noiommu_is_enabled()) {
+					RTE_LOG(WARNING, EAL, "Device " PCI_PRI_FMT " wanted IOVA as VA, but ",
+						addr->domain, addr->bus, addr->devid, addr->function);
+					RTE_LOG(WARNING, EAL, "vfio-noiommu is enabled.\n");
+					iova_mode = RTE_IOVA_PA;
+#endif
+				} else if (iova_mode == RTE_IOVA_PA) {
+					RTE_LOG(WARNING, EAL, "Device " PCI_PRI_FMT " wanted IOVA as VA, but ",
+						addr->domain, addr->bus, addr->devid, addr->function);
+					RTE_LOG(WARNING, EAL, "other devices require PA.\n");
+				} else {
+					iova_mode = RTE_IOVA_VA;
 				}
 			}
 			break;
 		case RTE_KDRV_IGB_UIO:
 		case RTE_KDRV_UIO_GENERIC:
 		case RTE_KDRV_NIC_UIO:
-			is_bound = true;
 			FOREACH_DRIVER_ON_PCIBUS(drv) {
 				if (!rte_pci_match(drv, dev))
 					continue;
 
-				is_bound_uio = true;
+				if (iova_mode == RTE_IOVA_VA) {
+					RTE_LOG(WARNING, EAL, "Some devices wanted IOVA as VA, but ");
+					RTE_LOG(WARNING, EAL, "device " PCI_PRI_FMT " requires PA.\n",
+						addr->domain, addr->bus, addr->devid, addr->function);
+
+				}
+
+				iova_mode = RTE_IOVA_PA;
 				break;
 			}
 			break;
@@ -639,29 +658,7 @@ rte_pci_get_iommu_class(void)
 		}
 	}
 
-	if (!is_bound)
-		return RTE_IOVA_DC;
-
-#ifdef VFIO_PRESENT
-	is_vfio_noiommu_enabled = rte_vfio_noiommu_is_enabled() == true ?
-					true : false;
-#endif
-
-	if (has_iova_va && !is_bound_uio && !is_vfio_noiommu_enabled &&
-			!iommu_no_va)
-		return RTE_IOVA_VA;
-
-	if (has_iova_va) {
-		RTE_LOG(WARNING, EAL, "Some devices want iova as va but pa will be used because.. ");
-		if (is_vfio_noiommu_enabled)
-			RTE_LOG(WARNING, EAL, "vfio-noiommu mode configured\n");
-		if (is_bound_uio)
-			RTE_LOG(WARNING, EAL, "few device bound to UIO\n");
-		if (iommu_no_va)
-			RTE_LOG(WARNING, EAL, "IOMMU does not support IOVA as VA\n");
-	}
-
-	return RTE_IOVA_PA;
+	return iova_mode;
 }
 
 /* Read PCI config space. */
