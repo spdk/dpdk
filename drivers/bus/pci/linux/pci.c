@@ -604,15 +604,7 @@ rte_pci_get_iommu_class(void)
 		if (dev->kdrv != RTE_KDRV_UNKNOWN &&
 		    dev->kdrv != RTE_KDRV_NONE) {
 			is_bound = true;
-			break;
 		}
-	}
-	if (!is_bound)
-		return RTE_IOVA_DC;
-
-	FOREACH_DEVICE_ON_PCIBUS(dev) {
-		if (pci_ignore_device(dev))
-			continue;
 
 		if (dev->kdrv == RTE_KDRV_VFIO) {
 			FOREACH_DRIVER_ON_PCIBUS(drv) {
@@ -630,21 +622,16 @@ rte_pci_get_iommu_class(void)
 					break;
 				}
 			}
-
-			if (has_iova_va)
-				break;
 		}
-	}
-
-	FOREACH_DEVICE_ON_PCIBUS(dev) {
-		if (pci_ignore_device(dev))
-			continue;
 
 		if (dev->kdrv == RTE_KDRV_IGB_UIO ||
 		   dev->kdrv == RTE_KDRV_UIO_GENERIC) {
 			is_bound_uio = true;
 		}
 	}
+
+	if (!is_bound)
+		return RTE_IOVA_DC;
 
 #ifdef VFIO_PRESENT
 	is_vfio_noiommu_enabled = rte_vfio_noiommu_is_enabled() == true ?
