@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "a5ac302c_bd68a22d",
+        "filename": "lib/librte_vhost/vhost.c",
+        "patchSetId": 3
+      },
+      "lineNbr": 334,
+      "author": {
+        "id": 1011218
+      },
+      "writtenOn": "2019-05-30T12:40:50Z",
+      "side": 1,
+      "message": "you might want to assert(trans_ops-\u003edevice_size \u003e\u003d sizeof(struct virtio_net))",
+      "revId": "3bc607cd8799f3b108d2b6bd14a8a89f72955990",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": true
+    }
+  ]
+}
