@@ -16,6 +16,24 @@
       "revId": "45b66efd3f8bffd442f951a0b6617abf68bd44ca",
       "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
       "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "f0be5014_3a75db36",
+        "filename": "lib/librte_vhost/vhost_user.c",
+        "patchSetId": 3
+      },
+      "lineNbr": 1658,
+      "author": {
+        "id": 1015163
+      },
+      "writtenOn": "2019-06-03T21:52:19Z",
+      "side": 0,
+      "message": "The VVU transport cannot support post-copy live migration due to the userfaultfd mechanism. The virtio-vhost-user device does not even promote these vhost-user messages (POSTCOPY_ADVISE/LISTEN/END) to the slave guest, so these functions will never run.",
+      "parentUuid": "b8e0d0b6_df0cc45c",
+      "revId": "45b66efd3f8bffd442f951a0b6617abf68bd44ca",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": true
     }
   ]
 }
