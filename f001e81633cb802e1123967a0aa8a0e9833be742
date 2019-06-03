@@ -16,6 +16,24 @@
       "revId": "f001e81633cb802e1123967a0aa8a0e9833be742",
       "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
       "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "86c9e45b_a86e472c",
+        "filename": "lib/librte_vhost/socket.c",
+        "patchSetId": 3
+      },
+      "lineNbr": 394,
+      "author": {
+        "id": 1015163
+      },
+      "writtenOn": "2019-06-03T21:16:23Z",
+      "side": 0,
+      "message": "I don\u0027t get it. reconn_tid is a global variable defined in trans_af_unix.c, hence initialized to zero. What am I missing?",
+      "parentUuid": "cb7638aa_2a15819f",
+      "revId": "f001e81633cb802e1123967a0aa8a0e9833be742",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": true
     }
   ]
 }
