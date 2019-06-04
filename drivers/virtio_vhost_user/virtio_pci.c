@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: BSD-3-Clause
  * Copyright(c) 2010-2014 Intel Corporation
+ * Copyright(c) 2019 Arrikto Inc.
  */
 #include <stdint.h>
 
@@ -407,6 +408,18 @@ virtio_read_caps(struct rte_pci_device *dev, struct virtio_hw *hw)
 		case VIRTIO_PCI_CAP_ISR_CFG:
 			hw->isr = get_cfg_addr(dev, &cap);
 			break;
+		case VIRTIO_PCI_CAP_DOORBELL_CFG:
+			rte_pci_read_config(dev, &hw->doorbell_off_multiplier,
+					4, pos + sizeof(cap));
+			hw->doorbell_base = get_cfg_addr(dev, &cap);
+			rte_pci_read_config(dev, &hw->doorbell_length, 4, pos + 10);
+			break;
+		case VIRTIO_PCI_CAP_NOTIFICATION_CFG:
+			hw->notify_cfg = get_cfg_addr(dev, &cap);
+			break;
+		case VIRTIO_PCI_CAP_SHARED_MEMORY_CFG:
+			hw->shared_memory_cfg = get_cfg_addr(dev, &cap);
+			break;
 		}
 
 next:
@@ -426,6 +439,9 @@ next:
 	RTE_LOG(DEBUG, VIRTIO_PCI_CONFIG, "isr cfg mapped at: %p\n", hw->isr);
 	RTE_LOG(DEBUG, VIRTIO_PCI_CONFIG, "notify base: %p, notify off multiplier: %u\n",
 		hw->notify_base, hw->notify_off_multiplier);
+	RTE_LOG(DEBUG, VIRTIO_PCI_CONFIG, "doorbell base: %p, doorbell off multiplier: %u\n", hw->doorbell_base, hw->doorbell_off_multiplier);
+	RTE_LOG(DEBUG, VIRTIO_PCI_CONFIG, "notification cfg mapped at: %p\n", hw->notify_cfg);
+	RTE_LOG(DEBUG, VIRTIO_PCI_CONFIG, "shared memory region mapped at: %p\n", hw->shared_memory_cfg);
 
 	return 0;
 }
