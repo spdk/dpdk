@@ -314,7 +314,17 @@ rte_vhost_driver_register(const char *path, uint64_t flags)
 {
 	int ret = -1;
 	struct vhost_user_socket *vsocket;
-	const struct vhost_transport_ops *trans_ops = &af_unix_trans_ops;
+	const struct vhost_transport_ops *trans_ops;
+
+	/* Register the AF_UNIX vhost-user transport in the transport map.
+	 * The AF_UNIX transport is supported by default.
+	 */
+	if (g_transport_map[UNIX] == NULL) {
+		if (rte_vhost_register_transport(UNIX, &af_unix_trans_ops) < 0)
+			goto out;
+	}
+
+	trans_ops = g_transport_map[UNIX];
 
 	if (!path)
 		return -1;
@@ -488,4 +498,18 @@ rte_vhost_driver_start(const char *path)
 		return -1;
 
 	return vsocket->trans_ops->socket_start(vsocket);
+}
+
+int
+rte_vhost_register_transport(VhostUserTransport trans,
+		const struct vhost_transport_ops *trans_ops)
+{
+	if (trans >= TRANSPORT_MAX) {
+		RTE_LOG(ERR, VHOST_CONFIG,
+			"Invalid vhost-user transport %d\n", trans);
+		return -1;
+	}
+
+	g_transport_map[trans] = trans_ops;
+	return 0;
 }
