@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: BSD-3-Clause
  * Copyright(c) 2010-2014 Intel Corporation
+ * Copyright(c) 2019 Arrikto Inc.
  */
 
 /* XXX This file is based on drivers/net/virtio/virtio_pci.h.  It would be
@@ -117,6 +118,10 @@ struct virtqueue;
 #define VIRTIO_PCI_CAP_DEVICE_CFG	4
 /* PCI configuration access */
 #define VIRTIO_PCI_CAP_PCI_CFG		5
+/* Additional capabilities for the virtio-vhost-user device */
+#define VIRTIO_PCI_CAP_DOORBELL_CFG    6
+#define VIRTIO_PCI_CAP_NOTIFICATION_CFG 7
+#define VIRTIO_PCI_CAP_SHARED_MEMORY_CFG 8
 
 /* This is the PCI capability header: */
 struct virtio_pci_cap {
@@ -161,6 +166,12 @@ struct virtio_pci_common_cfg {
 	uint32_t queue_used_hi;		/* read-write */
 };
 
+/* Fields in VIRTIO_PCI_CAP_NOTIFICATION_CFG */
+struct virtio_pci_notification_cfg {
+	uint16_t notification_select;              /* read-write */
+	uint16_t notification_msix_vector;         /* read-write */
+};
+
 struct virtio_hw;
 
 struct virtio_pci_ops {
@@ -200,6 +211,14 @@ struct virtio_hw {
 	uint16_t    *notify_base;
 	struct virtio_pci_common_cfg *common_cfg;
 	void	    *dev_cfg;
+	/* virtio-vhost-user additional device resource capabilities
+	 * https://stefanha.github.io/virtio/vhost-user-slave.html#x1-2830007
+	 */
+	uint32_t    doorbell_off_multiplier;
+	uint16_t    *doorbell_base;
+	uint32_t     doorbell_length;
+	struct virtio_pci_notification_cfg *notify_cfg;
+	uint8_t     *shared_memory_cfg;
 	/*
 	 * App management thread and virtio interrupt handler thread
 	 * both can change device state, this lock is meant to avoid
