@@ -60,6 +60,17 @@ DPDK_18.02 {
 
 } DPDK_17.08;
 
+DPDK_19.05 {
+	global:
+
+	rte_vhost_register_transport;
+	vhost_user_msg_handler;
+	vhost_new_device;
+	vhost_destroy_device;
+	vhost_set_ifname;
+
+} DPDK_18.02;
+
 EXPERIMENTAL {
 	global:
 

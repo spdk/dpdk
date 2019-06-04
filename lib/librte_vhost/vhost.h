@@ -493,6 +493,28 @@ struct vhost_transport_ops {
 /** The traditional AF_UNIX vhost-user protocol transport. */
 extern const struct vhost_transport_ops af_unix_trans_ops;
 
+typedef enum VhostUserTransport {
+	VHOST_TRANSPORT_UNIX = 0,
+	VHOST_TRANSPORT_MAX = 1
+} VhostUserTransport;
+
+/* A list with all the available vhost-user transports. */
+const struct vhost_transport_ops *g_transport_map[VHOST_TRANSPORT_MAX];
+
+/**
+ * Register a new vhost-user transport in the transport map.
+ *
+ * @param trans
+ *  the transport that is going to be registered
+ * @param trans_ops
+ *  the transport operations supported by this transport
+ * @return
+ *  0 on success, -1 on failure
+ * */
+int
+rte_vhost_register_transport(VhostUserTransport trans,
+                const struct vhost_transport_ops *trans_ops);
+
 /**
  * Device structure contains all configuration information relating
  * to the device.
