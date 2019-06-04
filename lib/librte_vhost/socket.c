@@ -324,7 +324,16 @@ rte_vhost_driver_register(const char *path, uint64_t flags)
 			goto out;
 	}
 
-	trans_ops = g_transport_map[UNIX];
+	if (flags & RTE_VHOST_USER_VIRTIO_TRANSPORT) {
+		trans_ops = g_transport_map[VVU];
+		if (trans_ops == NULL) {
+			RTE_LOG(ERR, VHOST_CONFIG,
+					"virtio-vhost-user transport is not supported\n");
+			goto out;
+		}
+	} else {
+		trans_ops = g_transport_map[UNIX];
+	}
 
 	if (!path)
 		return -1;

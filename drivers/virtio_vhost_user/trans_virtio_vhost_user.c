@@ -973,6 +973,10 @@ vvu_pci_init(void)
 	}
 
 	rte_pci_register(&vvu_pci_driver);
+	if (rte_vhost_register_transport(VVU, &virtio_vhost_user_trans_ops) < 0) {
+		RTE_LOG(ERR, VHOST_CONFIG,
+				"Registration of vhost-user transport (%d) failed\n", VVU);
+	}
 }
 
 static int
