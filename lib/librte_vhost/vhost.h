@@ -456,6 +456,9 @@ struct vhost_transport_ops {
 /** The traditional AF_UNIX vhost-user protocol transport. */
 extern const struct vhost_transport_ops af_unix_trans_ops;
 
+/** The virtio-vhost-user PCI vhost-user protocol transport. */
+extern const struct vhost_transport_ops virtio_vhost_user_trans_ops;
+
 typedef enum VhostUserTransport {
 	UNIX = 0,
 	VVU = 1,
