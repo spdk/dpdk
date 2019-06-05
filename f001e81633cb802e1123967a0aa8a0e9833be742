@@ -34,6 +34,24 @@
       "revId": "f001e81633cb802e1123967a0aa8a0e9833be742",
       "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
       "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "24cfe75a_ff2e100a",
+        "filename": "lib/librte_vhost/socket.c",
+        "patchSetId": 3
+      },
+      "lineNbr": 394,
+      "author": {
+        "id": 1011218
+      },
+      "writtenOn": "2019-06-05T09:01:04Z",
+      "side": 0,
+      "message": "pthread_tid is not defined to be a primitive. :) It could be a struct. I\u0027m guessing that\u0027s a flaw of the original spec. To be spec-compliant in cases like this you\u0027re usually supposed to have a separate bool flag set only if the tid is set.\n\nI\u0027m not saying you should fix it - this code was already there.",
+      "parentUuid": "86c9e45b_a86e472c",
+      "revId": "f001e81633cb802e1123967a0aa8a0e9833be742",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": true
     }
   ]
 }
