@@ -29,13 +29,9 @@
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/syscall.h>
 #include <assert.h>
 #ifdef RTE_LIBRTE_VHOST_NUMA
 #include <numaif.h>
-#endif
-#ifdef RTE_LIBRTE_VHOST_POSTCOPY
-#include <linux/userfaultfd.h>
 #endif
 
 #include <rte_common.h>
@@ -136,13 +132,6 @@ vhost_backend_cleanup(struct virtio_net *dev)
 
 	free(dev->guest_pages);
 	dev->guest_pages = NULL;
-
-	if (dev->postcopy_ufd >= 0) {
-		close(dev->postcopy_ufd);
-		dev->postcopy_ufd = -1;
-	}
-
-	dev->postcopy_listening = 0;
 }
 
 /*
@@ -1467,35 +1456,8 @@ vhost_user_set_postcopy_advise(struct virtio_net **pdev,
 			struct VhostUserMsg *msg)
 {
 	struct virtio_net *dev = *pdev;
-#ifdef RTE_LIBRTE_VHOST_POSTCOPY
-	struct uffdio_api api_struct;
 
-	dev->postcopy_ufd = syscall(__NR_userfaultfd, O_CLOEXEC | O_NONBLOCK);
-
-	if (dev->postcopy_ufd == -1) {
-		RTE_LOG(ERR, VHOST_CONFIG, "Userfaultfd not available: %s\n",
-			strerror(errno));
-		return RTE_VHOST_MSG_RESULT_ERR;
-	}
-	api_struct.api = UFFD_API;
-	api_struct.features = 0;
-	if (ioctl(dev->postcopy_ufd, UFFDIO_API, &api_struct)) {
-		RTE_LOG(ERR, VHOST_CONFIG, "UFFDIO_API ioctl failure: %s\n",
-			strerror(errno));
-		close(dev->postcopy_ufd);
-		dev->postcopy_ufd = -1;
-		return RTE_VHOST_MSG_RESULT_ERR;
-	}
-	msg->fds[0] = dev->postcopy_ufd;
-	msg->fd_num = 1;
-
-	return RTE_VHOST_MSG_RESULT_REPLY;
-#else
-	dev->postcopy_ufd = -1;
-	msg->fd_num = 0;
-
-	return RTE_VHOST_MSG_RESULT_ERR;
-#endif
+	return dev->trans_ops->set_postcopy_advise(dev, msg);
 }
 
 static int
@@ -1504,14 +1466,7 @@ vhost_user_set_postcopy_listen(struct virtio_net **pdev,
 {
 	struct virtio_net *dev = *pdev;
 
-	if (dev->mem && dev->mem->nregions) {
-		RTE_LOG(ERR, VHOST_CONFIG,
-			"Regions already registered at postcopy-listen\n");
-		return RTE_VHOST_MSG_RESULT_ERR;
-	}
-	dev->postcopy_listening = 1;
-
-	return RTE_VHOST_MSG_RESULT_OK;
+	return dev->trans_ops->set_postcopy_listen(dev);
 }
 
 static int
@@ -1519,17 +1474,7 @@ vhost_user_postcopy_end(struct virtio_net **pdev, struct VhostUserMsg *msg)
 {
 	struct virtio_net *dev = *pdev;
 
-	dev->postcopy_listening = 0;
-	if (dev->postcopy_ufd >= 0) {
-		close(dev->postcopy_ufd);
-		dev->postcopy_ufd = -1;
-	}
-
-	msg->payload.u64 = 0;
-	msg->size = sizeof(msg->payload.u64);
-	msg->fd_num = 0;
-
-	return RTE_VHOST_MSG_RESULT_REPLY;
+	return dev->trans_ops->set_postcopy_end(dev, msg);
 }
 
 typedef int (*vhost_message_handler_t)(struct virtio_net **pdev,

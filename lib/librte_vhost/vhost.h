@@ -450,6 +450,44 @@ struct vhost_transport_ops {
 	 */
 	int (*set_log_base)(struct virtio_net *dev,
 			    const struct VhostUserMsg *msg);
+
+	/**
+	 * Register a userfault fd and send it to master.
+	 *
+	 * @param dev
+	 *  vhost device
+	 * @param msg
+	 *  message
+	 * @return
+	 *  RTE_VHOST_MSG_RESULT_REPLY on success,
+	 *  RTE_VHOST_MSG_RESULT_ERR on failure
+	 */
+	int (*set_postcopy_advise)(struct virtio_net *dev,
+				   struct VhostUserMsg *msg);
+
+	/**
+	 * Change live migration mode (entering postcopy mode).
+	 *
+	 * @param dev
+	 *  vhost device
+	 * @return
+	 *  RTE_VHOST_MSG_RESULT_OK on success,
+	 *  RTE_VHOST_MSG_RESULT_ERR on failure
+	 */
+	int (*set_postcopy_listen)(struct virtio_net *dev);
+
+	/**
+	 * Register completion of postcopy live migration.
+	 *
+	 * @param dev
+	 *  vhost device
+	 * @param msg
+	 *  message
+	 * @return
+	 *  RTE_VHOST_MSG_RESULT_REPLY
+	 */
+	int (*set_postcopy_end)(struct virtio_net *dev,
+				struct VhostUserMsg *msg);
 };
 
 /** The traditional AF_UNIX vhost-user protocol transport. */
@@ -491,9 +529,6 @@ struct virtio_net {
 	uint32_t		nr_guest_pages;
 	uint32_t		max_guest_pages;
 	struct guest_page       *guest_pages;
-
-	int			postcopy_ufd;
-	int			postcopy_listening;
 
 	/*
 	 * Device id to identify a specific backend device.
