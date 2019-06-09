@@ -925,6 +925,12 @@ CONFIG_RTE_LIBRTE_VHOST_DEBUG=n
 CONFIG_RTE_LIBRTE_PMD_VHOST=n
 
 #
+# Compile virtio-vhost-user library
+# To compile, CONFIG_RTE_LIBRTE_VHOST should be enabled.
+#
+CONFIG_RTE_LIBRTE_VIRTIO_VHOST_USER=n
+
+#
 # Compile IFCVF driver
 # To compile, CONFIG_RTE_LIBRTE_VHOST and CONFIG_RTE_EAL_VFIO
 # should be enabled.

@@ -22,7 +22,10 @@ DIRS-$(CONFIG_RTE_LIBRTE_EVENTDEV) += event
 DEPDIRS-event := common bus mempool net
 DIRS-$(CONFIG_RTE_LIBRTE_RAWDEV) += raw
 DEPDIRS-raw := common bus mempool net event
-DIRS-$(CONFIG_RTE_LIBRTE_VHOST) += virtio_vhost_user
+
+ifeq ($(CONFIG_RTE_LIBRTE_VHOST)$(CONFIG_RTE_LIBRTE_VIRTIO_VHOST_USER),yy)
+DIRS-y += virtio_vhost_user
 DEPDIRS-virtio_vhost_user := bus
+endif
 
 include $(RTE_SDK)/mk/rte.subdir.mk
