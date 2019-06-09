@@ -130,7 +130,9 @@ ifeq ($(CONFIG_RTE_EAL_VFIO),y)
 _LDLIBS-$(CONFIG_RTE_LIBRTE_FSLMC_BUS)      += -lrte_bus_fslmc
 endif
 
-_LDLIBS-$(CONFIG_RTE_LIBRTE_VHOST)          += -lrte_virtio_vhost_user
+ifeq ($(CONFIG_RTE_LIBRTE_VHOST)$(CONFIG_RTE_LIBRTE_VIRTIO_VHOST_USER),yy)
+_LDLIBS-y += -lrte_virtio_vhost_user
+endif
 
 ifeq ($(CONFIG_RTE_BUILD_SHARED_LIB),n)
 # plugins (link only if static libraries)
