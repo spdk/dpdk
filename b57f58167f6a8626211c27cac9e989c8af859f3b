@@ -25,6 +25,30 @@
     },
     {
       "key": {
+        "uuid": "12308146_4cc9fffc",
+        "filename": "lib/librte_vhost/vhost.h",
+        "patchSetId": 2
+      },
+      "lineNbr": 497,
+      "author": {
+        "id": 1015163
+      },
+      "writtenOn": "2019-06-11T13:51:45Z",
+      "side": 1,
+      "message": "UNIX compiles successfully in contrast to AF_UNIX which indeed had a conflict. But VHOST_TRANSPORT_UNIX sounds much better.",
+      "parentUuid": "79b0666e_bca63fec",
+      "range": {
+        "startLine": 497,
+        "startChar": 1,
+        "endLine": 497,
+        "endChar": 5
+      },
+      "revId": "b57f58167f6a8626211c27cac9e989c8af859f3b",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "6bab8973_b72d8525",
         "filename": "lib/librte_vhost/vhost.h",
         "patchSetId": 2
@@ -45,6 +69,30 @@
       "revId": "b57f58167f6a8626211c27cac9e989c8af859f3b",
       "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
       "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "d9fe6f91_c51b68b4",
+        "filename": "lib/librte_vhost/vhost.h",
+        "patchSetId": 2
+      },
+      "lineNbr": 498,
+      "author": {
+        "id": 1015163
+      },
+      "writtenOn": "2019-06-11T13:51:45Z",
+      "side": 1,
+      "message": "Ack",
+      "parentUuid": "6bab8973_b72d8525",
+      "range": {
+        "startLine": 498,
+        "startChar": 1,
+        "endLine": 498,
+        "endChar": 4
+      },
+      "revId": "b57f58167f6a8626211c27cac9e989c8af859f3b",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
     }
   ]
 }
