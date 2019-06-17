@@ -71,6 +71,10 @@ extern "C" {
 #define VHOST_USER_PROTOCOL_F_HOST_NOTIFIER 11
 #endif
 
+#ifndef VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD
+#define VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD 12
+#endif
+
 /** Indicate whether protocol features negotiation is supported. */
 #ifndef VHOST_USER_F_PROTOCOL_FEATURES
 #define VHOST_USER_F_PROTOCOL_FEATURES	30
@@ -98,11 +102,40 @@ struct rte_vhost_memory {
 	struct rte_vhost_mem_region regions[];
 };
 
+struct inflight_desc {
+	uint8_t inflight;
+	uint8_t padding[5];
+	uint16_t next;
+	uint64_t counter;
+};
+
+struct inflight_info {
+	uint64_t features;
+	uint16_t version;
+	uint16_t desc_num;
+	uint16_t last_inflight_io;
+	uint16_t used_idx;
+	struct inflight_desc desc[0];
+};
+
+struct resubmit_desc {
+	uint16_t index;
+	uint64_t counter;
+};
+
+struct resubmit_info {
+	struct resubmit_desc *resubmit_list;
+	uint16_t resubmit_num;
+};
+
 struct rte_vhost_vring {
 	struct vring_desc	*desc;
 	struct vring_avail	*avail;
 	struct vring_used	*used;
 	uint64_t		log_guest_addr;
+
+	struct inflight_info	*inflight;
+	struct resubmit_info	*resubmit;
 
 	/** Deprecated, use rte_vhost_vring_call() instead. */
 	int			callfd;
@@ -630,6 +663,56 @@ int rte_vhost_get_vhost_vring(int vid, uint16_t vring_idx,
  *  0 on success, -1 on failure
  */
 int rte_vhost_vring_call(int vid, uint16_t vring_idx);
+
+/**
+ * set inflight flag for a desc.
+ *
+ * @param vid
+ *  vhost device ID
+ * @param vring_idx
+ *  vring index
+ * @param idx
+ *  inflight entry index
+ * @return
+ *  0 on success, -1 on failure
+ */
+int __rte_experimental
+rte_vhost_set_inflight_desc(int vid, uint16_t vring_idx,
+		uint16_t idx);
+
+/**
+ * clear inflight flag for a desc.
+ *
+ * @param vid
+ *  vhost device ID
+ * @param vring_idx
+ *  vring index
+ * @param last_used_idx
+ *  next free used_idx
+ * @param idx
+ *  inflight entry index
+ * @return
+ *  0 on success, -1 on failure
+ */
+int __rte_experimental
+rte_vhost_clr_inflight_desc(int vid, uint16_t vring_idx,
+		uint16_t last_used_idx, uint16_t idx);
+
+/**
+ * set last inflight io index.
+ *
+ * @param vid
+ *  vhost device ID
+ * @param vring_idx
+ *  vring index
+ * @param idx
+ *  inflight entry index
+ * @return
+ *  0 on success, -1 on failure
+ */
+int __rte_experimental
+rte_vhost_set_last_inflight_io(int vid, uint16_t vring_idx,
+		uint16_t idx);
 
 /**
  * Get vhost RX queue avail count.

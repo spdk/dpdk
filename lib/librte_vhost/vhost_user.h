@@ -54,7 +54,9 @@ typedef enum VhostUserRequest {
 	VHOST_USER_POSTCOPY_ADVISE = 28,
 	VHOST_USER_POSTCOPY_LISTEN = 29,
 	VHOST_USER_POSTCOPY_END = 30,
-	VHOST_USER_MAX = 31
+	VHOST_USER_GET_INFLIGHT_FD = 31,
+	VHOST_USER_SET_INFLIGHT_FD = 32,
+	VHOST_USER_MAX = 33
 } VhostUserRequest;
 
 typedef enum VhostUserSlaveRequest {
@@ -112,6 +114,13 @@ typedef struct VhostUserVringArea {
 	uint64_t offset;
 } VhostUserVringArea;
 
+typedef struct VhostUserInflight {
+	uint64_t mmap_size;
+	uint64_t mmap_offset;
+	uint16_t num_queues;
+	uint16_t queue_size;
+} VhostUserInflight;
+
 typedef struct VhostUserMsg {
 	union {
 		uint32_t master; /* a VhostUserRequest value */
@@ -131,6 +140,7 @@ typedef struct VhostUserMsg {
 		struct vhost_vring_addr addr;
 		VhostUserMemory memory;
 		VhostUserLog    log;
+		VhostUserInflight inflight;
 		struct vhost_iotlb_msg iotlb;
 		VhostUserCryptoSessionParam crypto_session;
 		VhostUserVringArea area;
@@ -148,6 +158,7 @@ typedef struct VhostUserMsg {
 /* vhost_user.c */
 int vhost_user_msg_handler(int vid, int fd);
 int vhost_user_iotlb_miss(struct virtio_net *dev, uint64_t iova, uint8_t perm);
+void *inflight_mem_alloc(const char *name, size_t size, int *fd);
 
 /* socket.c */
 int read_fd_message(int sockfd, char *buf, int buflen, int *fds, int max_fds,
