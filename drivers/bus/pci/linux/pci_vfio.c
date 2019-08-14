@@ -282,6 +282,92 @@ pci_vfio_setup_interrupts(struct rte_pci_device *dev, int vfio_dev_fd)
 	return -1;
 }
 
+static void
+pci_vfio_err_handler(void *param)
+{
+	struct rte_device *device = (struct rte_device *)param;
+
+	RTE_LOG(ERR, EAL, "AER! %s\n", device->name);
+}
+
+/* enable notifier (only enable req now) */
+static int
+pci_vfio_enable_err(struct rte_pci_device *dev, int vfio_dev_fd)
+{
+	int ret;
+	int fd = -1;
+
+	/* set up an eventfd for req notifier */
+	fd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
+	if (fd < 0) {
+		RTE_LOG(ERR, EAL, "Cannot set up eventfd, error %i (%s)\n",
+			errno, strerror(errno));
+		return -1;
+	}
+
+	dev->pcie_err_handle.fd = fd;
+	dev->pcie_err_handle.type = RTE_INTR_HANDLE_PCIE_ERR;
+	dev->pcie_err_handle.vfio_dev_fd = vfio_dev_fd;
+
+	ret = rte_intr_callback_register(&dev->pcie_err_handle,
+					 pci_vfio_err_handler,
+					 (void *)&dev->device);
+	if (ret) {
+		RTE_LOG(ERR, EAL, "Fail to register pcie err handler.\n");
+		goto error;
+	}
+
+	ret = rte_intr_enable(&dev->pcie_err_handle);
+	if (ret) {
+		RTE_LOG(ERR, EAL, "Fail to enable pcie err handler.\n");
+		ret = rte_intr_callback_unregister(&dev->pcie_err_handle,
+						 pci_vfio_err_handler,
+						 (void *)&dev->device);
+		if (ret < 0)
+			RTE_LOG(ERR, EAL,
+				"Fail to unregister pcie err handler.\n");
+		goto error;
+	}
+
+	return 0;
+error:
+	close(fd);
+
+	dev->pcie_err_handle.fd = -1;
+	dev->pcie_err_handle.type = RTE_INTR_HANDLE_UNKNOWN;
+	dev->pcie_err_handle.vfio_dev_fd = -1;
+
+	return -1;
+}
+
+static int
+pci_vfio_disable_err(struct rte_pci_device *dev)
+{
+	int ret;
+
+	ret = rte_intr_disable(&dev->pcie_err_handle);
+	if (ret) {
+		RTE_LOG(ERR, EAL, "fail to disable pcie err notifier.\n");
+		return -1;
+	}
+
+	ret = rte_intr_callback_unregister(&dev->pcie_err_handle,
+					   pci_vfio_err_handler,
+					   (void *)&dev->device);
+	if (ret < 0) {
+		RTE_LOG(ERR, EAL,
+			 "fail to unregister req notifier handler.\n");
+		return -1;
+	}
+
+	close(dev->pcie_err_handle.fd);
+
+	dev->pcie_err_handle.fd = -1;
+	dev->pcie_err_handle.type = RTE_INTR_HANDLE_UNKNOWN;
+	dev->pcie_err_handle.vfio_dev_fd = -1;
+
+	return 0;
+}
 #ifdef HAVE_VFIO_DEV_REQ_INTERFACE
 /*
  * Spinlock for device hot-unplug failure handling.
@@ -778,6 +864,12 @@ pci_vfio_map_resource_primary(struct rte_pci_device *dev)
 	}
 
 #endif
+
+	if (pci_vfio_enable_err(dev, vfio_dev_fd) != 0) {
+		RTE_LOG(ERR, EAL, "Error setting up pcie err\n");
+		goto err_vfio_res;
+	}
+
 	TAILQ_INSERT_TAIL(vfio_res_list, vfio_res, next);
 
 	return 0;
@@ -920,6 +1012,8 @@ pci_vfio_unmap_resource_primary(struct rte_pci_device *dev)
 	/* store PCI address string */
 	snprintf(pci_addr, sizeof(pci_addr), PCI_PRI_FMT,
 			loc->domain, loc->bus, loc->devid, loc->function);
+
+	pci_vfio_disable_err(dev);
 
 #ifdef HAVE_VFIO_DEV_REQ_INTERFACE
 	ret = pci_vfio_disable_notifier(dev);

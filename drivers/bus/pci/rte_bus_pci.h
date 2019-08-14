@@ -68,6 +68,7 @@ struct rte_pci_device {
 	char name[PCI_PRI_STR_SIZE+1];      /**< PCI location (ASCII) */
 	struct rte_intr_handle vfio_req_intr_handle;
 				/**< Handler of VFIO request interrupt */
+	struct rte_intr_handle pcie_err_handle;
 };
 
 /**

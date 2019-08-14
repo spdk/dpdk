@@ -312,6 +312,64 @@ vfio_disable_msix(const struct rte_intr_handle *intr_handle) {
 	return ret;
 }
 
+static int
+vfio_enable_err(const struct rte_intr_handle *intr_handle)
+{
+	int len, ret;
+	char irq_set_buf[IRQ_SET_BUF_LEN];
+	struct vfio_irq_set *irq_set;
+	int *fd_ptr;
+
+	len = sizeof(irq_set_buf) + sizeof(*fd_ptr);
+
+	irq_set = (struct vfio_irq_set *) irq_set_buf;
+	irq_set->argsz = len;
+	irq_set->count = 1;
+	irq_set->flags = VFIO_IRQ_SET_DATA_EVENTFD |
+			 VFIO_IRQ_SET_ACTION_TRIGGER;
+	irq_set->index = VFIO_PCI_ERR_IRQ_INDEX;
+	irq_set->start = 0;
+	fd_ptr = (int *) &irq_set->data;
+	*fd_ptr = intr_handle->fd;
+
+	ret = ioctl(intr_handle->vfio_dev_fd, VFIO_DEVICE_SET_IRQS, irq_set);
+
+	if (ret) {
+		RTE_LOG(ERR, EAL, "Error enabling err interrupts for fd %d\n",
+						intr_handle->fd);
+		return -1;
+	}
+
+	return 0;
+}
+
+/* disable req notifier */
+static int
+vfio_disable_err(const struct rte_intr_handle *intr_handle)
+{
+	struct vfio_irq_set *irq_set;
+	char irq_set_buf[IRQ_SET_BUF_LEN];
+	int len, ret, *pfd;
+
+	len = sizeof(struct vfio_irq_set) + sizeof(*pfd);
+
+	irq_set = (struct vfio_irq_set *) irq_set_buf;
+	irq_set->argsz = len;
+	irq_set->count = 1;
+	irq_set->flags = VFIO_IRQ_SET_DATA_NONE | VFIO_IRQ_SET_ACTION_TRIGGER;
+	irq_set->index = VFIO_PCI_ERR_IRQ_INDEX;
+	irq_set->start = 0;
+	pfd = (int *)&irq_set->data;
+	*pfd = -1;
+
+	ret = ioctl(intr_handle->vfio_dev_fd, VFIO_DEVICE_SET_IRQS, irq_set);
+
+	if (ret)
+		RTE_LOG(ERR, EAL, "Error disabling req interrupts for fd %d\n",
+			intr_handle->fd);
+
+	return ret;
+}
 #ifdef HAVE_VFIO_DEV_REQ_INTERFACE
 /* enable req notifier */
 static int
@@ -678,6 +736,10 @@ rte_intr_enable(const struct rte_intr_handle *intr_handle)
 			return -1;
 		break;
 #endif
+	case RTE_INTR_HANDLE_PCIE_ERR:
+		if (vfio_enable_err(intr_handle))
+			return -1;
+		break;
 #endif
 	/* not used at this moment */
 	case RTE_INTR_HANDLE_DEV_EVENT:
@@ -734,6 +796,10 @@ rte_intr_disable(const struct rte_intr_handle *intr_handle)
 			return -1;
 		break;
 #endif
+	case RTE_INTR_HANDLE_PCIE_ERR:
+		if (vfio_disable_err(intr_handle))
+			return -1;
+		break;
 #endif
 	/* not used at this moment */
 	case RTE_INTR_HANDLE_DEV_EVENT:
@@ -806,6 +872,10 @@ eal_intr_process_interrupts(struct epoll_event *events, int nfds)
 			call = true;
 			break;
 #endif
+		case RTE_INTR_HANDLE_PCIE_ERR:
+			bytes_read = 8;
+			call = true;
+			break;
 #endif
 		case RTE_INTR_HANDLE_VDEV:
 		case RTE_INTR_HANDLE_EXT:
