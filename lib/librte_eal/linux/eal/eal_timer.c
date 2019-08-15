@@ -198,6 +198,15 @@ check_tsc_flags(void)
 	char line[512];
 	FILE *stream;
 
+	if (rte_eal_process_type() != RTE_PROC_PRIMARY) {
+		/* This function just prints warnings if TSC is not constant
+		 * and has no functional meaning.  It also checks *all* cores
+		 * on the system, not just the ones configured for this process.
+		 * So don't bother rechecking again in secondary processes.
+		 */
+		return;
+	}
+
 	stream = fopen("/proc/cpuinfo", "r");
 	if (!stream) {
 		RTE_LOG(WARNING, EAL, "WARNING: Unable to open /proc/cpuinfo\n");
