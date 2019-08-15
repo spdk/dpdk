@@ -15,8 +15,15 @@
 #include <rte_log.h>
 #include <rte_cycles.h>
 #include <rte_pause.h>
+#include <rte_eal.h>
 
 #include "eal_private.h"
+
+#define EAL_TIMER_MP "eal_timer_mp_sync"
+
+struct timer_mp_param {
+	uint64_t tsc;
+};
 
 /* The frequency of the RDTSC timer resolution */
 static uint64_t eal_tsc_resolution_hz;
@@ -74,8 +81,8 @@ estimate_tsc_freq(void)
 	return RTE_ALIGN_MUL_NEAR(rte_rdtsc() - start, CYC_PER_10MHZ);
 }
 
-void
-set_tsc_freq(void)
+static void
+set_tsc_freq_primary(void)
 {
 	uint64_t freq;
 
@@ -87,6 +94,65 @@ set_tsc_freq(void)
 
 	RTE_LOG(DEBUG, EAL, "TSC frequency is ~%" PRIu64 " KHz\n", freq / 1000);
 	eal_tsc_resolution_hz = freq;
+}
+
+static void
+set_tsc_freq_secondary(void)
+{
+	struct rte_mp_msg mp_req;
+	struct rte_mp_reply mp_reply;
+	struct timer_mp_param *r;
+	struct timespec ts = {.tv_sec = 1, .tv_nsec = 0};
+
+	memset(&mp_req, 0, sizeof(mp_req));
+	strcpy(mp_req.name, EAL_TIMER_MP);
+	if (rte_mp_request_sync(&mp_req, &mp_reply, &ts) || mp_reply.nb_received != 1) {
+		/* We weren't able to get the tsc hz from the primary process.  So we will
+		 * just calculate it here in the secondary process instead.
+		 */
+		set_tsc_freq_primary();
+		return;
+	}
+
+	r = (struct timer_mp_param *)mp_reply.msgs[0].param;
+	eal_tsc_resolution_hz = r->tsc;
+	free(mp_reply.msgs);
+}
+
+static int
+timer_mp_primary(__attribute__((unused)) const struct rte_mp_msg *msg, const void *peer)
+{
+	struct rte_mp_msg reply;
+	struct timer_mp_param *r = (struct timer_mp_param *)reply.param;
+
+	memset(&reply, 0, sizeof(reply));
+	r->tsc = eal_tsc_resolution_hz;
+	strcpy(reply.name, EAL_TIMER_MP);
+	reply.len_param = sizeof(*r);
+
+	return rte_mp_reply(&reply, peer);
+}
+
+void
+set_tsc_freq(void)
+{
+	int rc;
+
+	/* We use a 100ms timer to calculate the TSC hz.  We can save this 100ms in
+	 * secondary processes, by getting the TSC hz from the primary process.
+	 * So register an mp_action callback in the primary process, which secondary
+	 * processes will use to get the TSC hz.
+	 */
+	if (rte_eal_process_type() == RTE_PROC_PRIMARY) {
+		set_tsc_freq_primary();
+		rc = rte_mp_action_register(EAL_TIMER_MP, timer_mp_primary);
+		if (rc) {
+			RTE_LOG(WARNING, EAL, "Could not register mp_action - secondary "
+				" processes will calculate TSC independently.\n");
+		}
+	} else {
+		set_tsc_freq_secondary();
+	}
 }
 
 void rte_delay_us_callback_register(void (*userfunc)(unsigned int))
