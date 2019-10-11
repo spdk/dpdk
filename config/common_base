@@ -57,7 +57,7 @@ CONFIG_RTE_ENABLE_LTO=n
 #
 # Compile to share library
 #
-CONFIG_RTE_BUILD_SHARED_LIB=n
+#CONFIG_RTE_BUILD_SHARED_LIB=n
 
 #
 # Use newest code breaking previous ABI
