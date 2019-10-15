@@ -1,0 +1,8 @@
+Code-Review+2: Ben Walker <benjamin.walker@intel.com>
+Code-Review+2: Jim Harris <james.r.harris@intel.com>
+Verified+1: Tomasz Zawadzki <tomasz.zawadzki@intel.com>
+Submitted-by: Tomasz Zawadzki <tomasz.zawadzki@intel.com>
+Submitted-at: Tue, 15 Oct 2019 07:22:46 +0000
+Reviewed-on: https://review.gerrithub.io/c/spdk/dpdk/+/471064
+Project: spdk/dpdk
+Branch: refs/heads/spdk-19.08
