@@ -4546,6 +4546,8 @@ static int bnxt_init_fw(struct bnxt *bp)
 	uint16_t mtu;
 	int rc = 0;
 
+	bp->fw_cap = 0;
+
 	rc = bnxt_hwrm_ver_get(bp);
 	if (rc)
 		return rc;
@@ -4581,7 +4583,7 @@ static int bnxt_init_fw(struct bnxt *bp)
 	/* Get the adapter error recovery support info */
 	rc = bnxt_hwrm_error_recovery_qcfg(bp);
 	if (rc)
-		bp->flags &= ~BNXT_FLAG_FW_CAP_ERROR_RECOVERY;
+		bp->fw_cap &= ~BNXT_FW_CAP_ERROR_RECOVERY;
 
 	bnxt_hwrm_port_led_qcaps(bp);
 
