@@ -1,0 +1,8 @@
+Code-Review+2: Changpeng Liu <changpeng.liu@intel.com>
+Code-Review+2: Jim Harris <james.r.harris@intel.com>
+Verified+1: Jim Harris <james.r.harris@intel.com>
+Submitted-by: Tomasz Zawadzki <tomasz.zawadzki@intel.com>
+Submitted-at: Thu, 12 Dec 2019 15:22:59 +0000
+Reviewed-on: https://review.gerrithub.io/c/spdk/dpdk/+/475130
+Project: spdk/dpdk
+Branch: refs/heads/spdk-19.08
