@@ -1455,7 +1455,7 @@ ret:
 		if (rxq && !vnic->rx_queue_cnt)
 			rxq->vnic = &bp->vnic_info[0];
 	}
-	return rc;
+	return -rte_errno;
 }
 
 static
@@ -1775,7 +1775,7 @@ free_flow:
 		rte_flow_error_set(error, 0,
 				   RTE_FLOW_ERROR_TYPE_NONE, NULL,
 				   "Flow with pattern exists, updating destination queue");
-	else
+	else if (!rte_errno)
 		rte_flow_error_set(error, -ret,
 				   RTE_FLOW_ERROR_TYPE_HANDLE, NULL,
 				   "Failed to create flow.");
