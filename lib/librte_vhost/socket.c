@@ -127,7 +127,8 @@ read_fd_message(int sockfd, char *buf, int buflen, int *fds, int max_fds,
 
 	ret = recvmsg(sockfd, &msgh, 0);
 	if (ret <= 0) {
-		RTE_LOG(ERR, VHOST_CONFIG, "recvmsg failed\n");
+		if (ret)
+			RTE_LOG(ERR, VHOST_CONFIG, "recvmsg failed\n");
 		return ret;
 	}
 
