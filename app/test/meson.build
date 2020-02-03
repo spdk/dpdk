@@ -56,7 +56,7 @@ test_sources = files('commands.c',
 	'test_hash_multiwriter.c',
 	'test_hash_readwrite.c',
 	'test_hash_perf.c',
-	'test_hash_readwrite_lf.c',
+	'test_hash_readwrite_lf_perf.c',
 	'test_interrupts.c',
 	'test_ipsec.c',
 	'test_ipsec_sad.c',
@@ -224,7 +224,6 @@ fast_test_names = [
         'eventdev_common_autotest',
         'fbarray_autotest',
         'hash_readwrite_autotest',
-        'hash_readwrite_lf_autotest',
         'ipsec_autotest',
         'kni_autotest',
         'kvargs_autotest',
@@ -269,6 +268,7 @@ perf_test_names = [
         'stack_perf_autotest',
         'stack_lf_perf_autotest',
         'rand_perf_autotest',
+        'hash_readwrite_lf_perf_autotest',
 ]
 
 driver_test_names = [
