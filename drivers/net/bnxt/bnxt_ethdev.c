@@ -3954,7 +3954,7 @@ static void bnxt_dev_recover(void *arg)
 	bp->flags &= ~BNXT_FLAG_FATAL_ERROR;
 
 	do {
-		rc = bnxt_hwrm_ver_get(bp);
+		rc = bnxt_hwrm_ver_get(bp, SHORT_HWRM_CMD_TIMEOUT);
 		if (rc == 0)
 			break;
 		rte_delay_ms(BNXT_FW_READY_WAIT_INTERVAL);
@@ -4633,7 +4633,7 @@ static int bnxt_init_fw(struct bnxt *bp)
 
 	bp->fw_cap = 0;
 
-	rc = bnxt_hwrm_ver_get(bp);
+	rc = bnxt_hwrm_ver_get(bp, DFLT_HWRM_CMD_TIMEOUT);
 	if (rc)
 		return rc;
 
