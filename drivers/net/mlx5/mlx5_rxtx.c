@@ -2821,8 +2821,14 @@ mlx5_tx_dseg_empw(struct mlx5_txq_data *restrict txq,
 	unsigned int part;
 	uint8_t *pdst;
 
-	dseg->bcount = rte_cpu_to_be_32(len | MLX5_ETH_WQE_DATA_INLINE);
-	pdst = &dseg->inline_data[0];
+	if (!MLX5_TXOFF_CONFIG(MPW)) {
+		/* Store the descriptor byte counter for eMPW sessions. */
+		dseg->bcount = rte_cpu_to_be_32(len | MLX5_ETH_WQE_DATA_INLINE);
+		pdst = &dseg->inline_data[0];
+	} else {
+		/* The entire legacy MPW session counter is stored on close. */
+		pdst = (uint8_t *)dseg;
+	}
 	/*
 	 * The WQEBB space availability is checked by caller.
 	 * Here we should be aware of WQE ring buffer wraparound only.
@@ -2834,7 +2840,8 @@ mlx5_tx_dseg_empw(struct mlx5_txq_data *restrict txq,
 		len -= part;
 		if (likely(!len)) {
 			pdst += part;
-			pdst = RTE_PTR_ALIGN(pdst, MLX5_WSEG_SIZE);
+			if (!MLX5_TXOFF_CONFIG(MPW))
+				pdst = RTE_PTR_ALIGN(pdst, MLX5_WSEG_SIZE);
 			/* Note: no final wraparound check here. */
 			return (struct mlx5_wqe_dseg *)pdst;
 		}
@@ -2882,9 +2889,16 @@ mlx5_tx_dseg_vlan(struct mlx5_txq_data *restrict txq,
 	static_assert(MLX5_DSEG_MIN_INLINE_SIZE ==
 				 (2 * RTE_ETHER_ADDR_LEN),
 		      "invalid Data Segment data size");
-	dseg->bcount = rte_cpu_to_be_32((len + sizeof(struct rte_vlan_hdr)) |
-					MLX5_ETH_WQE_DATA_INLINE);
-	pdst = &dseg->inline_data[0];
+	if (!MLX5_TXOFF_CONFIG(MPW)) {
+		/* Store the descriptor byte counter for eMPW sessions. */
+		dseg->bcount = rte_cpu_to_be_32
+				((len + sizeof(struct rte_vlan_hdr)) |
+				 MLX5_ETH_WQE_DATA_INLINE);
+		pdst = &dseg->inline_data[0];
+	} else {
+		/* The entire legacy MPW session counter is stored on close. */
+		pdst = (uint8_t *)dseg;
+	}
 	memcpy(pdst, buf, MLX5_DSEG_MIN_INLINE_SIZE);
 	buf += MLX5_DSEG_MIN_INLINE_SIZE;
 	pdst += MLX5_DSEG_MIN_INLINE_SIZE;
@@ -2907,7 +2921,8 @@ mlx5_tx_dseg_vlan(struct mlx5_txq_data *restrict txq,
 		len -= part;
 		if (likely(!len)) {
 			pdst += part;
-			pdst = RTE_PTR_ALIGN(pdst, MLX5_WSEG_SIZE);
+			if (!MLX5_TXOFF_CONFIG(MPW))
+				pdst = RTE_PTR_ALIGN(pdst, MLX5_WSEG_SIZE);
 			/* Note: no final wraparound check here. */
 			return (struct mlx5_wqe_dseg *)pdst;
 		}
@@ -3790,15 +3805,33 @@ mlx5_tx_idone_empw(struct mlx5_txq_data *restrict txq,
 		   unsigned int slen,
 		   unsigned int olx __rte_unused)
 {
+	struct mlx5_wqe_dseg *dseg = &loc->wqe_last->dseg[0];
+
 	assert(MLX5_TXOFF_CONFIG(INLINE));
-	assert((len % MLX5_WSEG_SIZE) == 0);
 #ifdef MLX5_PMD_SOFT_COUNTERS
 	/* Update sent data bytes counter. */
 	 txq->stats.obytes += slen;
 #else
 	(void)slen;
 #endif
-	len = len / MLX5_WSEG_SIZE + 2;
+	if (MLX5_TXOFF_CONFIG(MPW) && dseg->bcount == RTE_BE32(0)) {
+		/*
+		 * If the legacy MPW session contains the inline packets
+		 * we should set the only inline data segment length
+		 * and align the total length to the segment size.
+		 */
+		assert(len > sizeof(dseg->bcount));
+		dseg->bcount = rte_cpu_to_be_32((len - sizeof(dseg->bcount)) |
+						MLX5_ETH_WQE_DATA_INLINE);
+		len = (len + MLX5_WSEG_SIZE - 1) / MLX5_WSEG_SIZE + 2;
+	} else {
+		/*
+		 * The session is not legacy MPW or contains the
+		 * data buffer pointer segments.
+		 */
+		assert((len % MLX5_WSEG_SIZE) == 0);
+		len = len / MLX5_WSEG_SIZE + 2;
+	}
 	loc->wqe_last->cseg.sq_ds = rte_cpu_to_be_32(txq->qp_num_8s | len);
 	txq->wqe_ci += (len + 3) / 4;
 	loc->wqe_free -= (len + 3) / 4;
@@ -4077,6 +4110,15 @@ mlx5_tx_burst_empw_inline(struct mlx5_txq_data *restrict txq,
 			       loc->wqe_free) * MLX5_WQE_SIZE -
 					MLX5_WQE_CSEG_SIZE -
 					MLX5_WQE_ESEG_SIZE;
+		/* Limit the room for legacy MPW sessions for performance. */
+		if (MLX5_TXOFF_CONFIG(MPW))
+			room = RTE_MIN(room,
+				       RTE_MAX(txq->inlen_empw +
+					       sizeof(dseg->bcount) +
+					       (MLX5_TXOFF_CONFIG(VLAN) ?
+					       sizeof(struct rte_vlan_hdr) : 0),
+					       MLX5_MPW_INLINE_MAX_PACKETS *
+					       MLX5_WQE_DSEG_SIZE));
 		/* Build WQE till we have space, packets and resources. */
 		part = room;
 		for (;;) {
@@ -4106,8 +4148,26 @@ mlx5_tx_burst_empw_inline(struct mlx5_txq_data *restrict txq,
 			/* Inline or not inline - that's the Question. */
 			if (dlen > txq->inlen_empw)
 				goto pointer_empw;
+			if (MLX5_TXOFF_CONFIG(MPW)) {
+				tlen = dlen;
+				if (part == room) {
+					/* Open new inline MPW session. */
+					tlen += sizeof(dseg->bcount);
+					dseg->bcount = RTE_BE32(0);
+					dseg = RTE_PTR_ADD
+						(dseg, sizeof(dseg->bcount));
+				} else {
+					/*
+					 * No pointer and inline descriptor
+					 * intermix for legacy MPW sessions.
+					 */
+					if (loc->wqe_last->dseg[0].bcount)
+						break;
+				}
+			} else {
+				tlen = sizeof(dseg->bcount) + dlen;
+			}
 			/* Inline entire packet, optional VLAN insertion. */
-			tlen = sizeof(dseg->bcount) + dlen;
 			if (MLX5_TXOFF_CONFIG(VLAN) &&
 			    loc->mbuf->ol_flags & PKT_TX_VLAN_PKT) {
 				/*
@@ -4132,7 +4192,8 @@ mlx5_tx_burst_empw_inline(struct mlx5_txq_data *restrict txq,
 				dseg = mlx5_tx_dseg_empw(txq, loc, dseg,
 							 dptr, dlen, olx);
 			}
-			tlen = RTE_ALIGN(tlen, MLX5_WSEG_SIZE);
+			if (!MLX5_TXOFF_CONFIG(MPW))
+				tlen = RTE_ALIGN(tlen, MLX5_WSEG_SIZE);
 			assert(room >= tlen);
 			room -= tlen;
 			/*
@@ -4142,6 +4203,14 @@ mlx5_tx_burst_empw_inline(struct mlx5_txq_data *restrict txq,
 			rte_pktmbuf_free_seg(loc->mbuf);
 			goto next_mbuf;
 pointer_empw:
+			/*
+			 * No pointer and inline descriptor
+			 * intermix for legacy MPW sessions.
+			 */
+			if (MLX5_TXOFF_CONFIG(MPW) &&
+			    part != room &&
+			    loc->wqe_last->dseg[0].bcount == RTE_BE32(0))
+				break;
 			/*
 			 * Not inlinable VLAN packets are
 			 * proceeded outside of this routine.
