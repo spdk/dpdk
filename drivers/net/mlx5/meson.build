@@ -31,6 +31,9 @@ foreach libname:libnames
 	endif
 	if lib.found()
 		libs += [ lib ]
+		if not static_ibverbs
+			ext_deps += lib
+		endif
 	else
 		build = false
 		reason = 'missing dependency, "' + libname + '"'
@@ -38,9 +41,16 @@ foreach libname:libnames
 endforeach
 
 if build
+	if static_ibverbs
+		# Build without adding shared libs to Requires.private
+		ibv_cflags = run_command(pkgconf, '--cflags', 'libibverbs').stdout()
+		ext_deps += declare_dependency(compile_args: ibv_cflags.split())
+		# Add static deps ldflags to internal apps and Libs.private
+		ibv_ldflags = run_command(ldflags_ibverbs_static, check:true).stdout()
+		ext_deps += declare_dependency(link_args:ibv_ldflags.split())
+	endif
 	allow_experimental_apis = true
 	deps += ['hash']
-	ext_deps += libs
 	sources = files(
 		'mlx5.c',
 		'mlx5_ethdev.c',
