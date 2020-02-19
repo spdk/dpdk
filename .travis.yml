@@ -15,19 +15,19 @@ addons:
     packages: &required_packages
       - [libnuma-dev, linux-headers-$(uname -r), python3-setuptools, python3-wheel, python3-pip, ninja-build]
 
-aarch64_packages: &aarch64_packages
+_aarch64_packages: &aarch64_packages
   - *required_packages
   - [gcc-aarch64-linux-gnu, libc6-dev-arm64-cross, pkg-config-aarch64-linux-gnu]
 
-extra_packages: &extra_packages
+_extra_packages: &extra_packages
   - *required_packages
   - [libbsd-dev, libpcap-dev, libcrypto++-dev, libjansson4]
 
-build_32b_packages: &build_32b_packages
+_build_32b_packages: &build_32b_packages
   - *required_packages
   - [gcc-multilib]
 
-doc_packages: &doc_packages
+_doc_packages: &doc_packages
   - [doxygen, graphviz, python3-sphinx]
 
 before_install: ./.ci/${TRAVIS_OS_NAME}-setup.sh
@@ -39,7 +39,7 @@ env:
   - DEF_LIB="shared" OPTS="-Denable_kmods=false"
   - DEF_LIB="shared" RUN_TESTS=1
 
-matrix:
+jobs:
   include:
   - env: DEF_LIB="static" BUILD_32BIT=1
     compiler: gcc
