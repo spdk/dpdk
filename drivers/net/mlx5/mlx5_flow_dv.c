@@ -2965,10 +2965,14 @@ flow_dv_validate_action_modify_ipv4(const uint64_t action_flags,
 				    struct rte_flow_error *error)
 {
 	int ret = 0;
+	uint64_t layer;
 
 	ret = flow_dv_validate_action_modify_hdr(action_flags, action, error);
 	if (!ret) {
-		if (!(item_flags & MLX5_FLOW_LAYER_L3_IPV4))
+		layer = (action_flags & MLX5_FLOW_ACTION_DECAP) ?
+				 MLX5_FLOW_LAYER_INNER_L3_IPV4 :
+				 MLX5_FLOW_LAYER_OUTER_L3_IPV4;
+		if (!(item_flags & layer))
 			return rte_flow_error_set(error, EINVAL,
 						  RTE_FLOW_ERROR_TYPE_ACTION,
 						  NULL,
@@ -2999,10 +3003,14 @@ flow_dv_validate_action_modify_ipv6(const uint64_t action_flags,
 				    struct rte_flow_error *error)
 {
 	int ret = 0;
+	uint64_t layer;
 
 	ret = flow_dv_validate_action_modify_hdr(action_flags, action, error);
 	if (!ret) {
-		if (!(item_flags & MLX5_FLOW_LAYER_L3_IPV6))
+		layer = (action_flags & MLX5_FLOW_ACTION_DECAP) ?
+				 MLX5_FLOW_LAYER_INNER_L3_IPV6 :
+				 MLX5_FLOW_LAYER_OUTER_L3_IPV6;
+		if (!(item_flags & layer))
 			return rte_flow_error_set(error, EINVAL,
 						  RTE_FLOW_ERROR_TYPE_ACTION,
 						  NULL,
@@ -3033,10 +3041,14 @@ flow_dv_validate_action_modify_tp(const uint64_t action_flags,
 				  struct rte_flow_error *error)
 {
 	int ret = 0;
+	uint64_t layer;
 
 	ret = flow_dv_validate_action_modify_hdr(action_flags, action, error);
 	if (!ret) {
-		if (!(item_flags & MLX5_FLOW_LAYER_L4))
+		layer = (action_flags & MLX5_FLOW_ACTION_DECAP) ?
+				 MLX5_FLOW_LAYER_INNER_L4 :
+				 MLX5_FLOW_LAYER_OUTER_L4;
+		if (!(item_flags & layer))
 			return rte_flow_error_set(error, EINVAL,
 						  RTE_FLOW_ERROR_TYPE_ACTION,
 						  NULL, "no transport layer "
@@ -3068,10 +3080,14 @@ flow_dv_validate_action_modify_tcp_seq(const uint64_t action_flags,
 				       struct rte_flow_error *error)
 {
 	int ret = 0;
+	uint64_t layer;
 
 	ret = flow_dv_validate_action_modify_hdr(action_flags, action, error);
 	if (!ret) {
-		if (!(item_flags & MLX5_FLOW_LAYER_OUTER_L4_TCP))
+		layer = (action_flags & MLX5_FLOW_ACTION_DECAP) ?
+				 MLX5_FLOW_LAYER_INNER_L4_TCP :
+				 MLX5_FLOW_LAYER_OUTER_L4_TCP;
+		if (!(item_flags & layer))
 			return rte_flow_error_set(error, EINVAL,
 						  RTE_FLOW_ERROR_TYPE_ACTION,
 						  NULL, "no TCP item in"
@@ -3113,10 +3129,14 @@ flow_dv_validate_action_modify_tcp_ack(const uint64_t action_flags,
 				       struct rte_flow_error *error)
 {
 	int ret = 0;
+	uint64_t layer;
 
 	ret = flow_dv_validate_action_modify_hdr(action_flags, action, error);
 	if (!ret) {
-		if (!(item_flags & MLX5_FLOW_LAYER_OUTER_L4_TCP))
+		layer = (action_flags & MLX5_FLOW_ACTION_DECAP) ?
+				 MLX5_FLOW_LAYER_INNER_L4_TCP :
+				 MLX5_FLOW_LAYER_OUTER_L4_TCP;
+		if (!(item_flags & layer))
 			return rte_flow_error_set(error, EINVAL,
 						  RTE_FLOW_ERROR_TYPE_ACTION,
 						  NULL, "no TCP item in"
@@ -3157,10 +3177,14 @@ flow_dv_validate_action_modify_ttl(const uint64_t action_flags,
 				   struct rte_flow_error *error)
 {
 	int ret = 0;
+	uint64_t layer;
 
 	ret = flow_dv_validate_action_modify_hdr(action_flags, action, error);
 	if (!ret) {
-		if (!(item_flags & MLX5_FLOW_LAYER_L3))
+		layer = (action_flags & MLX5_FLOW_ACTION_DECAP) ?
+				 MLX5_FLOW_LAYER_INNER_L3 :
+				 MLX5_FLOW_LAYER_OUTER_L3;
+		if (!(item_flags & layer))
 			return rte_flow_error_set(error, EINVAL,
 						  RTE_FLOW_ERROR_TYPE_ACTION,
 						  NULL,
