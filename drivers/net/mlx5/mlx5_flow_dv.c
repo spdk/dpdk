@@ -1539,14 +1539,10 @@ flow_dv_validate_action_pop_vlan(struct rte_eth_dev *dev,
 /**
  * Get VLAN default info from vlan match info.
  *
- * @param[in] dev
- *   Pointer to the rte_eth_dev structure.
- * @param[in] item
+ * @param[in] items
  *   the list of item specifications.
  * @param[out] vlan
  *   pointer VLAN info to fill to.
- * @param[out] error
- *   Pointer to error structure.
  *
  * @return
  *   0 on success, a negative errno value otherwise and rte_errno is set.
@@ -1598,8 +1594,10 @@ flow_dev_get_vlan_info_from_items(const struct rte_flow_item *items,
  *
  * @param[in] action_flags
  *   Holds the actions detected until now.
+ * @param[in] item_flags
+ *   The items found in this flow rule.
  * @param[in] action
- *   Pointer to the encap action.
+ *   Pointer to the action structure.
  * @param[in] attr
  *   Pointer to flow attributes
  * @param[out] error
@@ -1649,8 +1647,6 @@ flow_dv_validate_action_push_vlan(uint64_t action_flags,
  *   Holds the actions detected until now.
  * @param[in] actions
  *   Pointer to the list of actions remaining in the flow rule.
- * @param[in] attr
- *   Pointer to flow attributes
  * @param[out] error
  *   Pointer to error structure.
  *
@@ -1865,7 +1861,7 @@ flow_dv_validate_action_mark(struct rte_eth_dev *dev,
  * @param[in] dev
  *   Pointer to the rte_eth_dev structure.
  * @param[in] action
- *   Pointer to the encap action.
+ *   Pointer to the action structure.
  * @param[in] action_flags
  *   Holds the actions detected until now.
  * @param[in] attr
@@ -1926,7 +1922,7 @@ flow_dv_validate_action_set_meta(struct rte_eth_dev *dev,
  * @param[in] dev
  *   Pointer to the rte_eth_dev structure.
  * @param[in] action
- *   Pointer to the encap action.
+ *   Pointer to the action structure.
  * @param[in] action_flags
  *   Holds the actions detected until now.
  * @param[in] attr
@@ -1980,7 +1976,7 @@ flow_dv_validate_action_set_tag(struct rte_eth_dev *dev,
  * Validate count action.
  *
  * @param[in] dev
- *   device otr.
+ *   Pointer to rte_eth_dev structure.
  * @param[out] error
  *   Pointer to error structure.
  *
@@ -2012,7 +2008,7 @@ notsup_err:
  * @param[in] action_flags
  *   Holds the actions detected until now.
  * @param[in] action
- *   Pointer to the encap action.
+ *   Pointer to the action structure.
  * @param[in] attr
  *   Pointer to flow attributes
  * @param[out] error
@@ -2872,12 +2868,12 @@ flow_dv_create_action_raw_encap(struct rte_eth_dev *dev,
  *
  * @param[in] dev
  *   Pointer to rte_eth_dev structure.
- * @param[in] vlan_tag
- *   the vlan tag to push to the Ethernet header.
- * @param[in, out] dev_flow
- *   Pointer to the mlx5_flow.
  * @param[in] attr
  *   Pointer to the flow attributes.
+ * @param[in] vlan
+ *   Pointer to the vlan to push to the Ethernet header.
+ * @param[in, out] dev_flow
+ *   Pointer to the mlx5_flow.
  * @param[out] error
  *   Pointer to the error structure.
  *
