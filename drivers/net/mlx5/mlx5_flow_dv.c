@@ -7479,7 +7479,11 @@ cnt_err:
 	}
 	assert(!flow_dv_check_valid_spec(matcher.mask.buf,
 					 dev_flow->dv.value.buf));
-	dev_flow->layers = item_flags;
+	/*
+	 * Layers may be already initialized from prefix flow if this dev_flow
+	 * is the suffix flow.
+	 */
+	dev_flow->layers |= item_flags;
 	/* Register matcher. */
 	matcher.crc = rte_raw_cksum((const void *)matcher.mask.buf,
 				    matcher.mask.size);
