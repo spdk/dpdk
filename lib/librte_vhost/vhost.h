@@ -537,7 +537,6 @@ vhost_log_write_iova(struct virtio_net *dev, struct vhost_virtqueue *vq,
 #define PRINT_PACKET(device, addr, size, header) do {} while (0)
 #endif
 
-extern uint64_t VHOST_FEATURES;
 #define MAX_VHOST_DEVICE	1024
 extern struct virtio_net *vhost_devices[MAX_VHOST_DEVICE];
 
