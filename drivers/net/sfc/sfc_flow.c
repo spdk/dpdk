@@ -1132,6 +1132,7 @@ sfc_flow_parse_attr(const struct rte_flow_attr *attr,
 
 	flow->spec.template.efs_flags |= EFX_FILTER_FLAG_RX;
 	flow->spec.template.efs_rss_context = EFX_RSS_CONTEXT_DEFAULT;
+	flow->spec.template.efs_priority = EFX_FILTER_PRI_MANUAL;
 
 	return 0;
 }
