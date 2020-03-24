@@ -1567,7 +1567,7 @@ flow_dv_validate_action_pop_vlan(struct rte_eth_dev *dev,
 				 const struct rte_flow_attr *attr,
 				 struct rte_flow_error *error)
 {
-	struct mlx5_priv *priv = dev->data->dev_private;
+	const struct mlx5_priv *priv = dev->data->dev_private;
 
 	(void)action;
 	(void)attr;
@@ -1598,6 +1598,11 @@ flow_dv_validate_action_pop_vlan(struct rte_eth_dev *dev,
 					  RTE_FLOW_ERROR_TYPE_ACTION, action,
 					  "wrong action order, port_id should "
 					  "be after pop VLAN action");
+	if (!attr->transfer && priv->representor)
+		return rte_flow_error_set(error, ENOTSUP,
+					  RTE_FLOW_ERROR_TYPE_UNSPECIFIED, NULL,
+					  "pop vlan action for VF representor "
+					  "not supported on NIC table");
 	return 0;
 }
 
@@ -1661,6 +1666,8 @@ flow_dev_get_vlan_info_from_items(const struct rte_flow_item *items,
 /**
  * Validate the push VLAN action.
  *
+ * @param[in] dev
+ *   Pointer to the rte_eth_dev structure.
  * @param[in] action_flags
  *   Holds the actions detected until now.
  * @param[in] item_flags
@@ -1676,13 +1683,15 @@ flow_dev_get_vlan_info_from_items(const struct rte_flow_item *items,
  *   0 on success, a negative errno value otherwise and rte_errno is set.
  */
 static int
-flow_dv_validate_action_push_vlan(uint64_t action_flags,
+flow_dv_validate_action_push_vlan(struct rte_eth_dev *dev,
+				  uint64_t action_flags,
 				  uint64_t item_flags __rte_unused,
 				  const struct rte_flow_action *action,
 				  const struct rte_flow_attr *attr,
 				  struct rte_flow_error *error)
 {
 	const struct rte_flow_action_of_push_vlan *push_vlan = action->conf;
+	const struct mlx5_priv *priv = dev->data->dev_private;
 
 	if (!attr->transfer && attr->ingress)
 		return rte_flow_error_set(error, ENOTSUP,
@@ -1705,6 +1714,11 @@ flow_dv_validate_action_push_vlan(uint64_t action_flags,
 					  RTE_FLOW_ERROR_TYPE_ACTION, action,
 					  "wrong action order, port_id should "
 					  "be after push VLAN");
+	if (!attr->transfer && priv->representor)
+		return rte_flow_error_set(error, ENOTSUP,
+					  RTE_FLOW_ERROR_TYPE_UNSPECIFIED, NULL,
+					  "push vlan action for VF representor "
+					  "not supported on NIC table");
 	(void)attr;
 	return 0;
 }
@@ -2070,10 +2084,14 @@ notsup_err:
 /**
  * Validate the L2 encap action.
  *
+ * @param[in] dev
+ *   Pointer to the rte_eth_dev structure.
  * @param[in] action_flags
  *   Holds the actions detected until now.
  * @param[in] action
  *   Pointer to the action structure.
+ * @param[in] attr
+ *   Pointer to flow attributes.
  * @param[out] error
  *   Pointer to error structure.
  *
@@ -2081,10 +2099,14 @@ notsup_err:
  *   0 on success, a negative errno value otherwise and rte_errno is set.
  */
 static int
-flow_dv_validate_action_l2_encap(uint64_t action_flags,
+flow_dv_validate_action_l2_encap(struct rte_eth_dev *dev,
+				 uint64_t action_flags,
 				 const struct rte_flow_action *action,
+				 const struct rte_flow_attr *attr,
 				 struct rte_flow_error *error)
 {
+	const struct mlx5_priv *priv = dev->data->dev_private;
+
 	if (!(action->conf))
 		return rte_flow_error_set(error, EINVAL,
 					  RTE_FLOW_ERROR_TYPE_ACTION, action,
@@ -2094,12 +2116,19 @@ flow_dv_validate_action_l2_encap(uint64_t action_flags,
 					  RTE_FLOW_ERROR_TYPE_ACTION, NULL,
 					  "can only have a single encap action "
 					  "in a flow");
+	if (!attr->transfer && priv->representor)
+		return rte_flow_error_set(error, ENOTSUP,
+					  RTE_FLOW_ERROR_TYPE_UNSPECIFIED, NULL,
+					  "encap action for VF representor "
+					  "not supported on NIC table");
 	return 0;
 }
 
 /**
  * Validate a decap action.
  *
+ * @param[in] dev
+ *   Pointer to the rte_eth_dev structure.
  * @param[in] action_flags
  *   Holds the actions detected until now.
  * @param[in] attr
@@ -2111,10 +2140,13 @@ flow_dv_validate_action_l2_encap(uint64_t action_flags,
  *   0 on success, a negative errno value otherwise and rte_errno is set.
  */
 static int
-flow_dv_validate_action_decap(uint64_t action_flags,
-				 const struct rte_flow_attr *attr,
-				 struct rte_flow_error *error)
+flow_dv_validate_action_decap(struct rte_eth_dev *dev,
+			      uint64_t action_flags,
+			      const struct rte_flow_attr *attr,
+			      struct rte_flow_error *error)
 {
+	const struct mlx5_priv *priv = dev->data->dev_private;
+
 	if (action_flags & MLX5_FLOW_XCAP_ACTIONS)
 		return rte_flow_error_set(error, ENOTSUP,
 					  RTE_FLOW_ERROR_TYPE_ACTION, NULL,
@@ -2133,6 +2165,11 @@ flow_dv_validate_action_decap(uint64_t action_flags,
 					  NULL,
 					  "decap action not supported for "
 					  "egress");
+	if (!attr->transfer && priv->representor)
+		return rte_flow_error_set(error, ENOTSUP,
+					  RTE_FLOW_ERROR_TYPE_UNSPECIFIED, NULL,
+					  "decap action for VF representor "
+					  "not supported on NIC table");
 	return 0;
 }
 
@@ -2141,6 +2178,8 @@ const struct rte_flow_action_raw_decap empty_decap = {.data = NULL, .size = 0,};
 /**
  * Validate the raw encap and decap actions.
  *
+ * @param[in] dev
+ *   Pointer to the rte_eth_dev structure.
  * @param[in] decap
  *   Pointer to the decap action.
  * @param[in] encap
@@ -2159,11 +2198,13 @@ const struct rte_flow_action_raw_decap empty_decap = {.data = NULL, .size = 0,};
  */
 static int
 flow_dv_validate_action_raw_encap_decap
-	(const struct rte_flow_action_raw_decap *decap,
+	(struct rte_eth_dev *dev,
+	 const struct rte_flow_action_raw_decap *decap,
 	 const struct rte_flow_action_raw_encap *encap,
 	 const struct rte_flow_attr *attr, uint64_t *action_flags,
 	 int *actions_n, struct rte_flow_error *error)
 {
+	const struct mlx5_priv *priv = dev->data->dev_private;
 	int ret;
 
 	if (encap && (!encap->size || !encap->data))
@@ -2196,7 +2237,8 @@ flow_dv_validate_action_raw_encap_decap
 				"encap combination");
 	}
 	if (decap) {
-		ret = flow_dv_validate_action_decap(*action_flags, attr, error);
+		ret = flow_dv_validate_action_decap(dev, *action_flags, attr,
+						    error);
 		if (ret < 0)
 			return ret;
 		*action_flags |= MLX5_FLOW_ACTION_DECAP;
@@ -2213,6 +2255,12 @@ flow_dv_validate_action_raw_encap_decap
 						  RTE_FLOW_ERROR_TYPE_ACTION,
 						  NULL,
 						  "more than one encap action");
+		if (!attr->transfer && priv->representor)
+			return rte_flow_error_set
+					(error, ENOTSUP,
+					 RTE_FLOW_ERROR_TYPE_UNSPECIFIED, NULL,
+					 "encap action for VF representor "
+					 "not supported on NIC table");
 		*action_flags |= MLX5_FLOW_ACTION_ENCAP;
 		++(*actions_n);
 	}
@@ -4654,7 +4702,8 @@ flow_dv_validate(struct rte_eth_dev *dev, const struct rte_flow_attr *attr,
 			++actions_n;
 			break;
 		case RTE_FLOW_ACTION_TYPE_OF_PUSH_VLAN:
-			ret = flow_dv_validate_action_push_vlan(action_flags,
+			ret = flow_dv_validate_action_push_vlan(dev,
+								action_flags,
 								item_flags,
 								actions, attr,
 								error);
@@ -4682,8 +4731,10 @@ flow_dv_validate(struct rte_eth_dev *dev, const struct rte_flow_attr *attr,
 			break;
 		case RTE_FLOW_ACTION_TYPE_VXLAN_ENCAP:
 		case RTE_FLOW_ACTION_TYPE_NVGRE_ENCAP:
-			ret = flow_dv_validate_action_l2_encap(action_flags,
-							       actions, error);
+			ret = flow_dv_validate_action_l2_encap(dev,
+							       action_flags,
+							       actions, attr,
+							       error);
 			if (ret < 0)
 				return ret;
 			action_flags |= MLX5_FLOW_ACTION_ENCAP;
@@ -4691,8 +4742,8 @@ flow_dv_validate(struct rte_eth_dev *dev, const struct rte_flow_attr *attr,
 			break;
 		case RTE_FLOW_ACTION_TYPE_VXLAN_DECAP:
 		case RTE_FLOW_ACTION_TYPE_NVGRE_DECAP:
-			ret = flow_dv_validate_action_decap(action_flags, attr,
-							    error);
+			ret = flow_dv_validate_action_decap(dev, action_flags,
+							    attr, error);
 			if (ret < 0)
 				return ret;
 			action_flags |= MLX5_FLOW_ACTION_DECAP;
@@ -4700,7 +4751,7 @@ flow_dv_validate(struct rte_eth_dev *dev, const struct rte_flow_attr *attr,
 			break;
 		case RTE_FLOW_ACTION_TYPE_RAW_ENCAP:
 			ret = flow_dv_validate_action_raw_encap_decap
-				(NULL, actions->conf, attr, &action_flags,
+				(dev, NULL, actions->conf, attr, &action_flags,
 				 &actions_n, error);
 			if (ret < 0)
 				return ret;
@@ -4716,7 +4767,8 @@ flow_dv_validate(struct rte_eth_dev *dev, const struct rte_flow_attr *attr,
 				encap = actions->conf;
 			}
 			ret = flow_dv_validate_action_raw_encap_decap
-					   (decap ? decap : &empty_decap, encap,
+					   (dev,
+					    decap ? decap : &empty_decap, encap,
 					    attr, &action_flags, &actions_n,
 					    error);
 			if (ret < 0)
