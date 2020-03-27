@@ -366,7 +366,7 @@ pci_scan_one(const char *dirname, const struct rte_pci_addr *addr)
 					 **/
 					if (dev2->kdrv != dev->kdrv ||
 						dev2->max_vfs != dev->max_vfs ||
-						memcmp(&dev2->id, &dev->id, sizeof(dev2->id))
+						memcmp(&dev2->id, &dev->id, sizeof(dev2->id)))
 						/*
 						 * This should not happens.
 						 * But it is still possible if
