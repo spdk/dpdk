@@ -24,6 +24,8 @@
 #include <rte_random.h>
 #include <rte_io.h>
 
+#include "ice_alloc.h"
+
 #include "../ice_logs.h"
 
 #define INLINE inline
@@ -176,7 +178,6 @@ struct ice_virt_mem {
 
 #define ice_memset(a, b, c, d) memset((a), (b), (c))
 #define ice_memcpy(a, b, c, d) rte_memcpy((a), (b), (c))
-#define ice_memdup(a, b, c, d) rte_memcpy(ice_malloc(a, c), b, c)
 
 #define CPU_TO_BE16(o) rte_cpu_to_be_16(o)
 #define CPU_TO_BE32(o) rte_cpu_to_be_32(o)
@@ -222,6 +223,19 @@ ice_destroy_lock(__attribute__((unused)) struct ice_lock *sp)
 }
 
 struct ice_hw;
+
+static __rte_always_inline void *
+ice_memdup(__rte_unused struct ice_hw *hw, const void *src, size_t size,
+	   __rte_unused enum ice_memcpy_type dir)
+{
+	void *p;
+
+	p = ice_malloc(hw, size);
+	if (p)
+		rte_memcpy(p, src, size);
+
+	return p;
+}
 
 static inline void *
 ice_alloc_dma_mem(__attribute__((unused)) struct ice_hw *hw,
