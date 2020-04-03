@@ -21,7 +21,7 @@ _aarch64_packages: &aarch64_packages
 
 _extra_packages: &extra_packages
   - *required_packages
-  - [libbsd-dev, libpcap-dev, libcrypto++-dev, libjansson4]
+  - [libbsd-dev, libpcap-dev, libcrypto++-dev, libjansson-dev]
 
 _build_32b_packages: &build_32b_packages
   - *required_packages
