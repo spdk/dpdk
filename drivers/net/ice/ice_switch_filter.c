@@ -871,7 +871,7 @@ ice_switch_inset_get(const struct rte_flow_item pattern[],
 						vlan_spec->inner_type;
 					list[t].m_u.vlan_hdr.type =
 						UINT16_MAX;
-					input_set |= ICE_INSET_VLAN_OUTER;
+					input_set |= ICE_INSET_ETHERTYPE;
 				}
 				t++;
 			} else if (!vlan_spec && !vlan_mask) {
