@@ -9,9 +9,9 @@
 #include "ena_plat.h"
 #include "ena_includes.h"
 
-#define ENA_MAX_NUM_IO_QUEUES		128U
+#define ENA_MAX_NUM_IO_QUEUES 128U
 /* We need to queues for each IO (on for Tx and one for Rx) */
-#define ENA_TOTAL_NUM_QUEUES		(2 * (ENA_MAX_NUM_IO_QUEUES))
+#define ENA_TOTAL_NUM_QUEUES (2 * (ENA_MAX_NUM_IO_QUEUES))
 
 #define ENA_MAX_HANDLERS 256
 
@@ -55,9 +55,9 @@
 #define ENA_INTR_MODER_LEVEL_STRIDE			1
 #define ENA_INTR_BYTE_COUNT_NOT_SUPPORTED		0xFFFFFF
 
-#define ENA_HW_HINTS_NO_TIMEOUT				0xFFFF
+#define ENA_HW_HINTS_NO_TIMEOUT 0xFFFF
 
-#define ENA_FEATURE_MAX_QUEUE_EXT_VER	1
+#define ENA_FEATURE_MAX_QUEUE_EXT_VER 1
 
 enum ena_intr_moder_level {
 	ENA_INTR_MODER_LOWEST = 0,
