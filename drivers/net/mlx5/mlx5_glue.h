@@ -258,6 +258,6 @@ struct mlx5_glue {
 			       struct mlx5dv_devx_port *mlx5_devx_port);
 };
 
-const struct mlx5_glue *mlx5_glue;
+extern const struct mlx5_glue *mlx5_glue;
 
 #endif /* MLX5_GLUE_H_ */
