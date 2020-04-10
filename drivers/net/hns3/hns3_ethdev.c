@@ -599,16 +599,19 @@ hns3_vlan_offload_set(struct rte_eth_dev *dev, int mask)
 	rxmode = &dev->data->dev_conf.rxmode;
 	tmp_mask = (unsigned int)mask;
 	if (tmp_mask & ETH_VLAN_FILTER_MASK) {
-		/* Enable or disable VLAN filter */
-		enable = rxmode->offloads & DEV_RX_OFFLOAD_VLAN_FILTER ?
-		    true : false;
+		/* ignore vlan filter configuration during promiscuous mode */
+		if (!dev->data->promiscuous) {
+			/* Enable or disable VLAN filter */
+			enable = rxmode->offloads & DEV_RX_OFFLOAD_VLAN_FILTER ?
+				 true : false;
 
-		ret = hns3_enable_vlan_filter(hns, enable);
-		if (ret) {
-			rte_spinlock_unlock(&hw->lock);
-			hns3_err(hw, "failed to %s rx filter, ret = %d",
-				 enable ? "enable" : "disable", ret);
-			return ret;
+			ret = hns3_enable_vlan_filter(hns, enable);
+			if (ret) {
+				rte_spinlock_unlock(&hw->lock);
+				hns3_err(hw, "failed to %s rx filter, ret = %d",
+					 enable ? "enable" : "disable", ret);
+				return ret;
+			}
 		}
 	}
 
@@ -994,14 +997,16 @@ hns3_restore_vlan_conf(struct hns3_adapter *hns)
 	bool enable;
 	int ret;
 
-	/* restore vlan filter states */
-	offloads = hw->data->dev_conf.rxmode.offloads;
-	enable = offloads & DEV_RX_OFFLOAD_VLAN_FILTER ? true : false;
-	ret = hns3_enable_vlan_filter(hns, enable);
-	if (ret) {
-		hns3_err(hw, "failed to restore vlan rx filter conf, ret = %d",
-			 ret);
-		return ret;
+	if (!hw->data->promiscuous) {
+		/* restore vlan filter states */
+		offloads = hw->data->dev_conf.rxmode.offloads;
+		enable = offloads & DEV_RX_OFFLOAD_VLAN_FILTER ? true : false;
+		ret = hns3_enable_vlan_filter(hns, enable);
+		if (ret) {
+			hns3_err(hw, "failed to restore vlan rx filter conf, "
+				 "ret = %d", ret);
+			return ret;
+		}
 	}
 
 	ret = hns3_set_vlan_rx_offload_cfg(hns, &pf->vtag_config.rx_vcfg);
@@ -3628,16 +3633,43 @@ hns3_clear_all_vfs_promisc_mode(struct hns3_hw *hw)
 static int
 hns3_dev_promiscuous_enable(struct rte_eth_dev *dev)
 {
+	bool allmulti = dev->data->all_multicast ? true : false;
 	struct hns3_adapter *hns = dev->data->dev_private;
 	struct hns3_hw *hw = &hns->hw;
+	uint64_t offloads;
+	int err;
 	int ret = 0;
 
 	rte_spinlock_lock(&hw->lock);
 	ret = hns3_set_promisc_mode(hw, true, true);
-	rte_spinlock_unlock(&hw->lock);
-	if (ret)
-		hns3_err(hw, "Failed to enable promiscuous mode, ret = %d",
+	if (ret) {
+		rte_spinlock_unlock(&hw->lock);
+		hns3_err(hw, "failed to enable promiscuous mode, ret = %d",
 			 ret);
+		return ret;
+	}
+
+	/*
+	 * When promiscuous mode was enabled, disable the vlan filter to let
+	 * all packets coming in in the receiving direction.
+	 */
+	offloads = dev->data->dev_conf.rxmode.offloads;
+	if (offloads & DEV_RX_OFFLOAD_VLAN_FILTER) {
+		ret = hns3_enable_vlan_filter(hns, false);
+		if (ret) {
+			hns3_err(hw, "failed to enable promiscuous mode due to "
+				     "failure to disable vlan filter, ret = %d",
+				 ret);
+			err = hns3_set_promisc_mode(hw, false, allmulti);
+			if (err)
+				hns3_err(hw, "failed to restore promiscuous "
+					 "status after disable vlan filter "
+					 "failed during enabling promiscuous "
+					 "mode, ret = %d", ret);
+		}
+	}
+
+	rte_spinlock_unlock(&hw->lock);
 
 	return ret;
 }
@@ -3648,15 +3680,36 @@ hns3_dev_promiscuous_disable(struct rte_eth_dev *dev)
 	bool allmulti = dev->data->all_multicast ? true : false;
 	struct hns3_adapter *hns = dev->data->dev_private;
 	struct hns3_hw *hw = &hns->hw;
+	uint64_t offloads;
+	int err;
 	int ret = 0;
 
 	/* If now in all_multicast mode, must remain in all_multicast mode. */
 	rte_spinlock_lock(&hw->lock);
 	ret = hns3_set_promisc_mode(hw, false, allmulti);
-	rte_spinlock_unlock(&hw->lock);
-	if (ret)
-		hns3_err(hw, "Failed to disable promiscuous mode, ret = %d",
+	if (ret) {
+		rte_spinlock_unlock(&hw->lock);
+		hns3_err(hw, "failed to disable promiscuous mode, ret = %d",
 			 ret);
+		return ret;
+	}
+	/* when promiscuous mode was disabled, restore the vlan filter status */
+	offloads = dev->data->dev_conf.rxmode.offloads;
+	if (offloads & DEV_RX_OFFLOAD_VLAN_FILTER) {
+		ret = hns3_enable_vlan_filter(hns, true);
+		if (ret) {
+			hns3_err(hw, "failed to disable promiscuous mode due to"
+				 " failure to restore vlan filter, ret = %d",
+				 ret);
+			err = hns3_set_promisc_mode(hw, true, true);
+			if (err)
+				hns3_err(hw, "failed to restore promiscuous "
+					 "status after enabling vlan filter "
+					 "failed during disabling promiscuous "
+					 "mode, ret = %d", ret);
+		}
+	}
+	rte_spinlock_unlock(&hw->lock);
 
 	return ret;
 }
@@ -3675,7 +3728,7 @@ hns3_dev_allmulticast_enable(struct rte_eth_dev *dev)
 	ret = hns3_set_promisc_mode(hw, false, true);
 	rte_spinlock_unlock(&hw->lock);
 	if (ret)
-		hns3_err(hw, "Failed to enable allmulticast mode, ret = %d",
+		hns3_err(hw, "failed to enable allmulticast mode, ret = %d",
 			 ret);
 
 	return ret;
@@ -3696,7 +3749,7 @@ hns3_dev_allmulticast_disable(struct rte_eth_dev *dev)
 	ret = hns3_set_promisc_mode(hw, false, false);
 	rte_spinlock_unlock(&hw->lock);
 	if (ret)
-		hns3_err(hw, "Failed to disable allmulticast mode, ret =  %d",
+		hns3_err(hw, "failed to disable allmulticast mode, ret = %d",
 			 ret);
 
 	return ret;
@@ -3707,11 +3760,21 @@ hns3_dev_promisc_restore(struct hns3_adapter *hns)
 {
 	struct hns3_hw *hw = &hns->hw;
 	bool allmulti = hw->data->all_multicast ? true : false;
+	int ret;
 
-	if (hw->data->promiscuous)
-		return hns3_set_promisc_mode(hw, true, true);
+	if (hw->data->promiscuous) {
+		ret = hns3_set_promisc_mode(hw, true, true);
+		if (ret)
+			hns3_err(hw, "failed to restore promiscuous mode, "
+				 "ret = %d", ret);
+		return ret;
+	}
 
-	return hns3_set_promisc_mode(hw, false, allmulti);
+	ret = hns3_set_promisc_mode(hw, false, allmulti);
+	if (ret)
+		hns3_err(hw, "failed to restore allmulticast mode, ret = %d",
+			 ret);
+	return ret;
 }
 
 static int
