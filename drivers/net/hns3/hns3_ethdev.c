@@ -550,7 +550,7 @@ hns3_set_vlan_filter_ctrl(struct hns3_hw *hw, uint8_t vlan_type,
 }
 
 static int
-hns3_enable_vlan_filter(struct hns3_adapter *hns, bool enable)
+hns3_vlan_filter_init(struct hns3_adapter *hns)
 {
 	struct hns3_hw *hw = &hns->hw;
 	int ret;
@@ -558,14 +558,29 @@ hns3_enable_vlan_filter(struct hns3_adapter *hns, bool enable)
 	ret = hns3_set_vlan_filter_ctrl(hw, HNS3_FILTER_TYPE_VF,
 					HNS3_FILTER_FE_EGRESS, false, 0);
 	if (ret) {
-		hns3_err(hw, "hns3 enable filter fail, ret =%d", ret);
+		hns3_err(hw, "failed to init vf vlan filter, ret = %d", ret);
 		return ret;
 	}
 
 	ret = hns3_set_vlan_filter_ctrl(hw, HNS3_FILTER_TYPE_PORT,
+					HNS3_FILTER_FE_INGRESS, false, 0);
+	if (ret)
+		hns3_err(hw, "failed to init port vlan filter, ret = %d", ret);
+
+	return ret;
+}
+
+static int
+hns3_enable_vlan_filter(struct hns3_adapter *hns, bool enable)
+{
+	struct hns3_hw *hw = &hns->hw;
+	int ret;
+
+	ret = hns3_set_vlan_filter_ctrl(hw, HNS3_FILTER_TYPE_PORT,
 					HNS3_FILTER_FE_INGRESS, enable, 0);
 	if (ret)
-		hns3_err(hw, "hns3 enable filter fail, ret =%d", ret);
+		hns3_err(hw, "failed to %s port vlan filter, ret = %d",
+			 enable ? "enable" : "disable", ret);
 
 	return ret;
 }
@@ -583,6 +598,20 @@ hns3_vlan_offload_set(struct rte_eth_dev *dev, int mask)
 	rte_spinlock_lock(&hw->lock);
 	rxmode = &dev->data->dev_conf.rxmode;
 	tmp_mask = (unsigned int)mask;
+	if (tmp_mask & ETH_VLAN_FILTER_MASK) {
+		/* Enable or disable VLAN filter */
+		enable = rxmode->offloads & DEV_RX_OFFLOAD_VLAN_FILTER ?
+		    true : false;
+
+		ret = hns3_enable_vlan_filter(hns, enable);
+		if (ret) {
+			rte_spinlock_unlock(&hw->lock);
+			hns3_err(hw, "failed to %s rx filter, ret = %d",
+				 enable ? "enable" : "disable", ret);
+			return ret;
+		}
+	}
+
 	if (tmp_mask & ETH_VLAN_STRIP_MASK) {
 		/* Enable or disable VLAN stripping */
 		enable = rxmode->offloads & DEV_RX_OFFLOAD_VLAN_STRIP ?
@@ -591,7 +620,8 @@ hns3_vlan_offload_set(struct rte_eth_dev *dev, int mask)
 		ret = hns3_en_hw_strip_rxvtag(hns, enable);
 		if (ret) {
 			rte_spinlock_unlock(&hw->lock);
-			hns3_err(hw, "failed to enable rx strip, ret =%d", ret);
+			hns3_err(hw, "failed to %s rx strip, ret = %d",
+				 enable ? "enable" : "disable", ret);
 			return ret;
 		}
 	}
@@ -918,7 +948,7 @@ hns3_init_vlan_config(struct hns3_adapter *hns)
 	if (rte_atomic16_read(&hw->reset.resetting) == 0)
 		init_port_base_vlan_info(hw);
 
-	ret = hns3_enable_vlan_filter(hns, true);
+	ret = hns3_vlan_filter_init(hns);
 	if (ret) {
 		hns3_err(hw, "vlan init fail in pf, ret =%d", ret);
 		return ret;
@@ -960,17 +990,29 @@ hns3_restore_vlan_conf(struct hns3_adapter *hns)
 {
 	struct hns3_pf *pf = &hns->pf;
 	struct hns3_hw *hw = &hns->hw;
+	uint64_t offloads;
+	bool enable;
 	int ret;
+
+	/* restore vlan filter states */
+	offloads = hw->data->dev_conf.rxmode.offloads;
+	enable = offloads & DEV_RX_OFFLOAD_VLAN_FILTER ? true : false;
+	ret = hns3_enable_vlan_filter(hns, enable);
+	if (ret) {
+		hns3_err(hw, "failed to restore vlan rx filter conf, ret = %d",
+			 ret);
+		return ret;
+	}
 
 	ret = hns3_set_vlan_rx_offload_cfg(hns, &pf->vtag_config.rx_vcfg);
 	if (ret) {
-		hns3_err(hw, "hns3 restore vlan rx conf fail, ret =%d", ret);
+		hns3_err(hw, "failed to restore vlan rx conf, ret = %d", ret);
 		return ret;
 	}
 
 	ret = hns3_set_vlan_tx_offload_cfg(hns, &pf->vtag_config.tx_vcfg);
 	if (ret)
-		hns3_err(hw, "hns3 restore vlan tx conf fail, ret =%d", ret);
+		hns3_err(hw, "failed to restore vlan tx conf, ret = %d", ret);
 
 	return ret;
 }
@@ -982,6 +1024,7 @@ hns3_dev_configure_vlan(struct rte_eth_dev *dev)
 	struct rte_eth_dev_data *data = dev->data;
 	struct rte_eth_txmode *txmode;
 	struct hns3_hw *hw = &hns->hw;
+	int mask;
 	int ret;
 
 	txmode = &data->dev_conf.txmode;
@@ -995,9 +1038,11 @@ hns3_dev_configure_vlan(struct rte_eth_dev *dev)
 			  txmode->hw_vlan_reject_untagged);
 
 	/* Apply vlan offload setting */
-	ret = hns3_vlan_offload_set(dev, ETH_VLAN_STRIP_MASK);
+	mask = ETH_VLAN_STRIP_MASK | ETH_VLAN_FILTER_MASK;
+	ret = hns3_vlan_offload_set(dev, mask);
 	if (ret) {
-		hns3_err(hw, "dev config vlan Strip failed, ret =%d", ret);
+		hns3_err(hw, "dev config rx vlan offload failed, ret = %d",
+			 ret);
 		return ret;
 	}
 
@@ -1005,7 +1050,7 @@ hns3_dev_configure_vlan(struct rte_eth_dev *dev)
 	ret = hns3_vlan_pvid_set(dev, txmode->pvid,
 				 txmode->hw_vlan_insert_pvid);
 	if (ret)
-		hns3_err(hw, "dev config vlan pvid(%d) failed, ret =%d",
+		hns3_err(hw, "dev config vlan pvid(%d) failed, ret = %d",
 			 txmode->pvid, ret);
 
 	return ret;
