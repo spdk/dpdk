@@ -8108,6 +8108,9 @@ flow_dv_destroy_mtr_tbl(struct rte_eth_dev *dev,
 	if (mtd->egress.tbl)
 		claim_zero(flow_dv_tbl_resource_release(dev,
 							mtd->egress.tbl));
+	if (mtd->egress.sfx_tbl)
+		claim_zero(flow_dv_tbl_resource_release(dev,
+							mtd->egress.sfx_tbl));
 	if (mtd->ingress.color_matcher)
 		claim_zero(mlx5_glue->dv_destroy_flow_matcher
 			  (mtd->ingress.color_matcher));
@@ -8117,6 +8120,9 @@ flow_dv_destroy_mtr_tbl(struct rte_eth_dev *dev,
 	if (mtd->ingress.tbl)
 		claim_zero(flow_dv_tbl_resource_release(dev,
 							mtd->ingress.tbl));
+	if (mtd->ingress.sfx_tbl)
+		claim_zero(flow_dv_tbl_resource_release(dev,
+							mtd->ingress.sfx_tbl));
 	if (mtd->transfer.color_matcher)
 		claim_zero(mlx5_glue->dv_destroy_flow_matcher
 			  (mtd->transfer.color_matcher));
@@ -8126,6 +8132,9 @@ flow_dv_destroy_mtr_tbl(struct rte_eth_dev *dev,
 	if (mtd->transfer.tbl)
 		claim_zero(flow_dv_tbl_resource_release(dev,
 							mtd->transfer.tbl));
+	if (mtd->transfer.sfx_tbl)
+		claim_zero(flow_dv_tbl_resource_release(dev,
+							mtd->transfer.sfx_tbl));
 	if (mtd->drop_actn)
 		claim_zero(mlx5_glue->destroy_flow_action(mtd->drop_actn));
 	rte_free(mtd);
@@ -8173,36 +8182,29 @@ flow_dv_prepare_mtr_tables(struct rte_eth_dev *dev,
 		.match_mask = (void *)&mask,
 	};
 	void *actions[METER_ACTIONS];
-	struct mlx5_flow_tbl_resource **sfx_tbl;
 	struct mlx5_meter_domain_info *dtb;
 	struct rte_flow_error error;
 	int i = 0;
 
-	if (transfer) {
-		sfx_tbl = &sh->fdb_mtr_sfx_tbl;
+	if (transfer)
 		dtb = &mtb->transfer;
-	} else if (egress) {
-		sfx_tbl = &sh->tx_mtr_sfx_tbl;
+	else if (egress)
 		dtb = &mtb->egress;
-	} else {
-		sfx_tbl = &sh->rx_mtr_sfx_tbl;
+	else
 		dtb = &mtb->ingress;
-	}
-	/* If the suffix table in missing, create it. */
-	if (!(*sfx_tbl)) {
-		*sfx_tbl = flow_dv_tbl_resource_get(dev,
-						MLX5_FLOW_TABLE_LEVEL_SUFFIX,
-						egress, transfer, &error);
-		if (!(*sfx_tbl)) {
-			DRV_LOG(ERR, "Failed to create meter suffix table.");
-			return -1;
-		}
-	}
 	/* Create the meter table with METER level. */
 	dtb->tbl = flow_dv_tbl_resource_get(dev, MLX5_FLOW_TABLE_LEVEL_METER,
 					    egress, transfer, &error);
 	if (!dtb->tbl) {
 		DRV_LOG(ERR, "Failed to create meter policer table.");
+		return -1;
+	}
+	/* Create the meter suffix table with SUFFIX level. */
+	dtb->sfx_tbl = flow_dv_tbl_resource_get(dev,
+					    MLX5_FLOW_TABLE_LEVEL_SUFFIX,
+					    egress, transfer, &error);
+	if (!dtb->sfx_tbl) {
+		DRV_LOG(ERR, "Failed to create meter suffix table.");
 		return -1;
 	}
 	/* Create matchers, Any and Color. */
@@ -8375,8 +8377,6 @@ flow_dv_destroy_policer_rules(struct rte_eth_dev *dev __rte_unused,
  *   Pointer to flow meter structure.
  * @param[in] mtb
  *   Pointer to DV meter table set.
- * @param[in] sfx_tb
- *   Pointer to suffix table.
  * @param[in] mtr_reg_c
  *   Color match REG_C.
  *
@@ -8386,7 +8386,6 @@ flow_dv_destroy_policer_rules(struct rte_eth_dev *dev __rte_unused,
 static int
 flow_dv_create_policer_forward_rule(struct mlx5_flow_meter *fm,
 				    struct mlx5_meter_domain_info *dtb,
-				    struct mlx5_flow_tbl_resource *sfx_tb,
 				    uint8_t mtr_reg_c)
 {
 	struct mlx5_flow_dv_match_params matcher = {
@@ -8400,12 +8399,10 @@ flow_dv_create_policer_forward_rule(struct mlx5_flow_meter *fm,
 	int i;
 
 	/* Create jump action. */
-	if (!sfx_tb)
-		return -1;
 	if (!dtb->jump_actn)
 		dtb->jump_actn =
 			mlx5_glue->dr_create_flow_action_dest_flow_tbl
-							(sfx_tb->obj);
+							(dtb->sfx_tbl->obj);
 	if (!dtb->jump_actn) {
 		DRV_LOG(ERR, "Failed to create policer jump action.");
 		goto error;
@@ -8460,7 +8457,6 @@ flow_dv_create_policer_rules(struct rte_eth_dev *dev,
 
 	if (attr->egress) {
 		ret = flow_dv_create_policer_forward_rule(fm, &mtb->egress,
-						priv->sh->tx_mtr_sfx_tbl,
 						priv->mtr_color_reg);
 		if (ret) {
 			DRV_LOG(ERR, "Failed to create egress policer.");
@@ -8469,7 +8465,6 @@ flow_dv_create_policer_rules(struct rte_eth_dev *dev,
 	}
 	if (attr->ingress) {
 		ret = flow_dv_create_policer_forward_rule(fm, &mtb->ingress,
-						priv->sh->rx_mtr_sfx_tbl,
 						priv->mtr_color_reg);
 		if (ret) {
 			DRV_LOG(ERR, "Failed to create ingress policer.");
@@ -8478,7 +8473,6 @@ flow_dv_create_policer_rules(struct rte_eth_dev *dev,
 	}
 	if (attr->transfer) {
 		ret = flow_dv_create_policer_forward_rule(fm, &mtb->transfer,
-						priv->sh->fdb_mtr_sfx_tbl,
 						priv->mtr_color_reg);
 		if (ret) {
 			DRV_LOG(ERR, "Failed to create transfer policer.");
