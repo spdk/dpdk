@@ -491,6 +491,8 @@ rte_cryptodev_get_feature_name(uint64_t flag)
 		return "RSA_PRIV_OP_KEY_QT";
 	case RTE_CRYPTODEV_FF_DIGEST_ENCRYPTED:
 		return "DIGEST_ENCRYPTED";
+	case RTE_CRYPTODEV_FF_ASYM_SESSIONLESS:
+		return "ASYM_SESSIONLESS";
 	default:
 		return NULL;
 	}
