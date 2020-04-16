@@ -1946,8 +1946,8 @@ mlx5_get_dbr(struct rte_eth_dev *dev, struct mlx5_devx_dbr_page **dbr_page)
 	     i++)
 		; /* Empty. */
 	/* Find the first clear bit. */
+	assert(i < MLX5_DBR_BITMAP_SIZE);
 	j = rte_bsf64(~page->dbr_bitmap[i]);
-	assert(i < (MLX5_DBR_PER_PAGE / 64));
 	page->dbr_bitmap[i] |= (1 << j);
 	page->dbr_count++;
 	*dbr_page = page;
