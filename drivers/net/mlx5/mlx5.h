@@ -975,6 +975,7 @@ struct mlx5_flow_counter *mlx5_counter_alloc(struct rte_eth_dev *dev);
 void mlx5_counter_free(struct rte_eth_dev *dev, struct mlx5_flow_counter *cnt);
 int mlx5_counter_query(struct rte_eth_dev *dev, struct mlx5_flow_counter *cnt,
 		       bool clear, uint64_t *pkts, uint64_t *bytes);
+void mlx5_flow_rxq_dynf_metadata_set(struct rte_eth_dev *dev);
 
 /* mlx5_mp.c */
 void mlx5_mp_req_start_rxtx(struct rte_eth_dev *dev);
