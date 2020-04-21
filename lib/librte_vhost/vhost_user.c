@@ -2828,11 +2828,19 @@ static int process_slave_message_reply(struct virtio_net *dev,
 	if ((msg->flags & VHOST_USER_NEED_REPLY) == 0)
 		return 0;
 
-	if (read_vhost_message(dev->slave_req_fd, &msg_reply) < 0) {
+	ret = read_vhost_message(dev->slave_req_fd, &msg_reply);
+	if (ret <= 0) {
+		if (ret < 0)
+			RTE_LOG(ERR, VHOST_CONFIG,
+				"vhost read slave message reply failed\n");
+		else
+			RTE_LOG(INFO, VHOST_CONFIG,
+				"vhost peer closed\n");
 		ret = -1;
 		goto out;
 	}
 
+	ret = 0;
 	if (msg_reply.request.slave != msg->request.slave) {
 		RTE_LOG(ERR, VHOST_CONFIG,
 			"Received unexpected msg type (%u), expected %u\n",
