@@ -470,6 +470,11 @@ struct bnxt_error_recovery_info {
 	uint32_t        last_reset_counter;
 };
 
+/* Frequency for the FUNC_DRV_IF_CHANGE retry in milliseconds */
+#define BNXT_IF_CHANGE_RETRY_INTERVAL	50
+/* Maximum retry count for FUNC_DRV_IF_CHANGE */
+#define BNXT_IF_CHANGE_RETRY_COUNT	40
+
 /* address space location of register */
 #define BNXT_FW_STATUS_REG_TYPE_MASK	3
 /* register is located in PCIe config space */
