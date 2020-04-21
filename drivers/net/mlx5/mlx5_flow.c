@@ -2302,6 +2302,7 @@ flow_null_validate(struct rte_eth_dev *dev __rte_unused,
 		   const struct rte_flow_item items[] __rte_unused,
 		   const struct rte_flow_action actions[] __rte_unused,
 		   bool external __rte_unused,
+		   int hairpin __rte_unused,
 		   struct rte_flow_error *error)
 {
 	return rte_flow_error_set(error, ENOTSUP,
@@ -2416,6 +2417,8 @@ flow_get_drv_type(struct rte_eth_dev *dev, const struct rte_flow_attr *attr)
  *   Pointer to the list of actions.
  * @param[in] external
  *   This flow rule is created by request external to PMD.
+ * @param[in] hairpin
+ *   Number of hairpin TX actions, 0 means classic flow.
  * @param[out] error
  *   Pointer to the error structure.
  *
@@ -2427,13 +2430,14 @@ flow_drv_validate(struct rte_eth_dev *dev,
 		  const struct rte_flow_attr *attr,
 		  const struct rte_flow_item items[],
 		  const struct rte_flow_action actions[],
-		  bool external, struct rte_flow_error *error)
+		  bool external, int hairpin, struct rte_flow_error *error)
 {
 	const struct mlx5_flow_driver_ops *fops;
 	enum mlx5_flow_drv_type type = flow_get_drv_type(dev, attr);
 
 	fops = flow_get_drv_ops(type);
-	return fops->validate(dev, attr, items, actions, external, error);
+	return fops->validate(dev, attr, items, actions, external,
+			      hairpin, error);
 }
 
 /**
@@ -2589,27 +2593,6 @@ flow_drv_destroy(struct rte_eth_dev *dev, struct rte_flow *flow)
 	assert(type > MLX5_FLOW_TYPE_MIN && type < MLX5_FLOW_TYPE_MAX);
 	fops = flow_get_drv_ops(type);
 	fops->destroy(dev, flow);
-}
-
-/**
- * Validate a flow supported by the NIC.
- *
- * @see rte_flow_validate()
- * @see rte_flow_ops
- */
-int
-mlx5_flow_validate(struct rte_eth_dev *dev,
-		   const struct rte_flow_attr *attr,
-		   const struct rte_flow_item items[],
-		   const struct rte_flow_action actions[],
-		   struct rte_flow_error *error)
-{
-	int ret;
-
-	ret = flow_drv_validate(dev, attr, items, actions, true, error);
-	if (ret < 0)
-		return ret;
-	return 0;
 }
 
 /**
@@ -4184,15 +4167,16 @@ flow_list_create(struct rte_eth_dev *dev, struct mlx5_flows *list,
 	const struct rte_flow_action *p_actions_rx = actions;
 	uint32_t i;
 	uint32_t flow_size;
-	int hairpin_flow = 0;
+	int hairpin_flow;
 	uint32_t hairpin_id = 0;
 	struct rte_flow_attr attr_tx = { .priority = 0 };
-	int ret = flow_drv_validate(dev, attr, items, p_actions_rx, external,
-				    error);
+	int ret;
 
+	hairpin_flow = flow_check_hairpin_split(dev, attr, actions);
+	ret = flow_drv_validate(dev, attr, items, p_actions_rx,
+				external, hairpin_flow, error);
 	if (ret < 0)
 		return NULL;
-	hairpin_flow = flow_check_hairpin_split(dev, attr, actions);
 	if (hairpin_flow > 0) {
 		if (hairpin_flow > MLX5_MAX_SPLIT_ACTIONS) {
 			rte_errno = EINVAL;
@@ -4367,6 +4351,26 @@ mlx5_flow_create_esw_table_zero_flow(struct rte_eth_dev *dev)
 
 	return flow_list_create(dev, &priv->ctrl_flows, &attr, &pattern,
 				actions, false, &error);
+}
+
+/**
+ * Validate a flow supported by the NIC.
+ *
+ * @see rte_flow_validate()
+ * @see rte_flow_ops
+ */
+int
+mlx5_flow_validate(struct rte_eth_dev *dev,
+		   const struct rte_flow_attr *attr,
+		   const struct rte_flow_item items[],
+		   const struct rte_flow_action actions[],
+		   struct rte_flow_error *error)
+{
+	int hairpin_flow;
+
+	hairpin_flow = flow_check_hairpin_split(dev, attr, actions);
+	return flow_drv_validate(dev, attr, items, actions,
+				true, hairpin_flow, error);
 }
 
 /**
