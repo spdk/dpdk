@@ -385,6 +385,8 @@ print_stats(struct l2fwd_resources *rsrc)
 		   total_packets_rx,
 		   total_packets_dropped);
 	printf("\n====================================================\n");
+
+	fflush(stdout);
 }
 
 static void
