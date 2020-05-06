@@ -1094,6 +1094,7 @@ ice_switch_parse_pattern_action(struct ice_adapter *ad,
 		return -rte_errno;
 	}
 
+	memset(&rule_info, 0, sizeof(rule_info));
 	rule_info.tun_type = tun_type;
 
 	sw_meta_ptr =
