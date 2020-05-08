@@ -1676,6 +1676,8 @@ virtio_dev_tx_split(struct virtio_net *dev, struct vhost_virtqueue *vq,
 {
 	uint16_t i;
 	uint16_t free_entries;
+	uint16_t dropped = 0;
+	static bool allocerr_warned;
 
 	if (unlikely(dev->dequeue_zero_copy)) {
 		struct zcopy_mbuf *zmbuf, *next;
@@ -1739,13 +1741,35 @@ virtio_dev_tx_split(struct virtio_net *dev, struct vhost_virtqueue *vq,
 			update_shadow_used_ring_split(vq, head_idx, 0);
 
 		pkts[i] = virtio_dev_pktmbuf_alloc(dev, mbuf_pool, buf_len);
-		if (unlikely(pkts[i] == NULL))
+		if (unlikely(pkts[i] == NULL)) {
+			/*
+			 * mbuf allocation fails for jumbo packets when external
+			 * buffer allocation is not allowed and linear buffer
+			 * is required. Drop this packet.
+			 */
+			if (!allocerr_warned) {
+				RTE_LOG(ERR, VHOST_DATA,
+					"Failed mbuf alloc of size %d from %s on %s.\n",
+					buf_len, mbuf_pool->name, dev->ifname);
+				allocerr_warned = true;
+			}
+			dropped += 1;
+			i++;
 			break;
+		}
 
 		err = copy_desc_to_mbuf(dev, vq, buf_vec, nr_vec, pkts[i],
 				mbuf_pool);
 		if (unlikely(err)) {
 			rte_pktmbuf_free(pkts[i]);
+			if (!allocerr_warned) {
+				RTE_LOG(ERR, VHOST_DATA,
+					"Failed to copy desc to mbuf on %s.\n",
+					dev->ifname);
+				allocerr_warned = true;
+			}
+			dropped += 1;
+			i++;
 			break;
 		}
 
@@ -1755,6 +1779,8 @@ virtio_dev_tx_split(struct virtio_net *dev, struct vhost_virtqueue *vq,
 			zmbuf = get_zmbuf(vq);
 			if (!zmbuf) {
 				rte_pktmbuf_free(pkts[i]);
+				dropped += 1;
+				i++;
 				break;
 			}
 			zmbuf->mbuf = pkts[i];
@@ -1784,7 +1810,7 @@ virtio_dev_tx_split(struct virtio_net *dev, struct vhost_virtqueue *vq,
 		}
 	}
 
-	return i;
+	return (i - dropped);
 }
 
 static __rte_always_inline int
@@ -1918,6 +1944,7 @@ vhost_dequeue_single_packed(struct virtio_net *dev,
 	uint32_t buf_len;
 	uint16_t nr_vec = 0;
 	int err;
+	static bool allocerr_warned;
 
 	if (unlikely(fill_vec_buf_packed(dev, vq,
 					 vq->last_avail_idx, desc_count,
@@ -1928,14 +1955,24 @@ vhost_dequeue_single_packed(struct virtio_net *dev,
 
 	*pkts = virtio_dev_pktmbuf_alloc(dev, mbuf_pool, buf_len);
 	if (unlikely(*pkts == NULL)) {
-		RTE_LOG(ERR, VHOST_DATA,
-			"Failed to allocate memory for mbuf.\n");
+		if (!allocerr_warned) {
+			RTE_LOG(ERR, VHOST_DATA,
+				"Failed mbuf alloc of size %d from %s on %s.\n",
+				buf_len, mbuf_pool->name, dev->ifname);
+			allocerr_warned = true;
+		}
 		return -1;
 	}
 
 	err = copy_desc_to_mbuf(dev, vq, buf_vec, nr_vec, *pkts,
 				mbuf_pool);
 	if (unlikely(err)) {
+		if (!allocerr_warned) {
+			RTE_LOG(ERR, VHOST_DATA,
+				"Failed to copy desc to mbuf on %s.\n",
+				dev->ifname);
+			allocerr_warned = true;
+		}
 		rte_pktmbuf_free(*pkts);
 		return -1;
 	}
@@ -1950,21 +1987,24 @@ virtio_dev_tx_single_packed(struct virtio_net *dev,
 			    struct rte_mbuf **pkts)
 {
 
-	uint16_t buf_id, desc_count;
+	uint16_t buf_id, desc_count = 0;
+	int ret;
 
-	if (vhost_dequeue_single_packed(dev, vq, mbuf_pool, pkts, &buf_id,
-					&desc_count))
-		return -1;
+	ret = vhost_dequeue_single_packed(dev, vq, mbuf_pool, pkts, &buf_id,
+					&desc_count);
 
-	if (virtio_net_is_inorder(dev))
-		vhost_shadow_dequeue_single_packed_inorder(vq, buf_id,
-							   desc_count);
-	else
-		vhost_shadow_dequeue_single_packed(vq, buf_id, desc_count);
+	if (likely(desc_count > 0)) {
+		if (virtio_net_is_inorder(dev))
+			vhost_shadow_dequeue_single_packed_inorder(vq, buf_id,
+								   desc_count);
+		else
+			vhost_shadow_dequeue_single_packed(vq, buf_id,
+					desc_count);
 
-	vq_inc_last_avail_packed(vq, desc_count);
+		vq_inc_last_avail_packed(vq, desc_count);
+	}
 
-	return 0;
+	return ret;
 }
 
 static __rte_always_inline int
