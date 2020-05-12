@@ -1340,3 +1340,66 @@ Tested Platforms
       * Kernel 4.15.0-88-generic
       * IBM Power9 Model 8335-101 CPU: 2.3 (pvr 004e 1203)
       * Mellanox Technologies MT28800 Family [ConnectX-5 Ex], firmware version: 16.26.4012, MLNX_OFED_LINUX-4.7-3.2.9.1
+
+19.11.2 Release Notes
+---------------------
+
+19.11.2 Fixes
+~~~~~~~~~~~~~
+
+* 2cf9c470eb vhost: check log mmap offset and size overflow (CVE-2020-10722)
+* 8e9652b0b6 vhost: fix translated address not checked (CVE-2020-10723)
+* 95e1f29c26 vhost/crypto: validate keys lengths (CVE-2020-10724)
+* 963b6eea05 vhost: fix potential memory space leak (CVE-2020-10725)
+* c9c630a117 vhost: fix potential fd leak (CVE-2020-10726)
+* cd0ea71bb6 vhost: fix vring index check (CVE-2020-10726)
+
+19.11.2 Validation
+~~~~~~~~~~~~~~~~~~
+
+* Red Hat(R) Testing
+
+   * Platform
+
+      * RHEL 8.3
+      * Kernel 4.18
+      * Qemu 4.2
+      * X540-AT2 NIC(ixgbe, 10G)
+
+   * Functionality
+
+      * PVP (host dpdk testpmd as vswitch) 1Q: throughput testing
+      * PVP vhost-user 2Q throughput testing
+      * PVP vhost-user 1Q - cross numa node  throughput testing
+      * PVP 1Q live migration testing
+      * PVP 1Q cross numa node live migration testing
+
+* Intel(R) Testing
+
+   * Virtio features
+
+      * vhost/virtio loopback test with virtio user as server mode
+      * loopback multi queues
+      * loopback multi paths port restart
+      * vhost/virtio pvp multi-paths performance
+      * pvp multi-queues and port restart
+      * vhost dequeue zero copy
+      * pvp share lib
+      * pvp vhost user reconnect
+      * pvp test with 4k pages
+      * pvp test with 2M hugepages
+      * pvp virtio bonding
+      * pvp test with diff qemu version
+      * vhost enqueue interrupt
+      * vhost event idx interrupt
+      * vhost virtio pmd interrupt
+      * vhost virtio user interrupt
+      * virtio event idx interrupt
+      * virtio user for container networking
+      * virtio user as exceptional path
+      * vhost xstats
+      * virtio-pmd multi-process
+      * vm2vm virtio pmd
+      * vm2vm virtio-net iperf
+      * vm2vm virtio-user
+      * vhost user live migration
