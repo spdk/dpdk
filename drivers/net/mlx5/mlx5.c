@@ -3109,7 +3109,7 @@ mlx5_pci_probe(struct rte_pci_driver *pci_drv __rte_unused,
 		/*
 		 * Single IB device with multiple ports found,
 		 * it may be E-Switch master device and representors.
-		 * We have to perform identification trough the ports.
+		 * We have to perform identification through the ports.
 		 */
 		assert(nl_rdma >= 0);
 		assert(ns == 0);
