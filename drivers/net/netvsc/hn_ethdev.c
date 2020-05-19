@@ -201,7 +201,7 @@ static int hn_parse_args(const struct rte_eth_dev *dev)
  */
 int
 hn_dev_link_update(struct rte_eth_dev *dev,
-		   int wait_to_complete)
+		   int wait_to_complete __rte_unused)
 {
 	struct hn_data *hv = dev->data->dev_private;
 	struct rte_eth_link link, old;
@@ -214,8 +214,6 @@ hn_dev_link_update(struct rte_eth_dev *dev,
 		return error;
 
 	hn_rndis_get_linkspeed(hv);
-
-	hn_vf_link_update(dev, wait_to_complete);
 
 	link = (struct rte_eth_link) {
 		.link_duplex = ETH_LINK_FULL_DUPLEX,
