@@ -14,3 +14,5 @@ headers = files('rte_pipeline.h',
 	'rte_swx_extern.h',
 	'rte_swx_ctl.h',)
 deps += ['port', 'table', 'meter', 'sched', 'cryptodev']
+build = false
+reason = 'not needed by SPDK'

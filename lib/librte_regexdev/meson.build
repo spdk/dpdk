@@ -6,3 +6,5 @@ headers = files('rte_regexdev.h',
 	'rte_regexdev_core.h',
 	'rte_regexdev_driver.h')
 deps += ['mbuf']
+build = false
+reason = 'not needed by SPDK'

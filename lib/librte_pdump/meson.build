@@ -4,3 +4,5 @@
 sources = files('rte_pdump.c')
 headers = files('rte_pdump.h')
 deps += ['ethdev']
+build = false
+reason = 'not needed by SPDK'

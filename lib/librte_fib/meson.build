@@ -56,3 +56,5 @@ if dpdk_conf.has('RTE_ARCH_X86_64') and binutils_ok.returncode() == 0
 		endif
 	endif
 endif
+build = false
+reason = 'not needed by SPDK'
