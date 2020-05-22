@@ -38,3 +38,5 @@ if dpdk_conf.has('RTE_LIB_KNI')
 	headers += files('rte_port_kni.h')
 	deps += 'kni'
 endif
+build = false
+reason = 'not needed by SPDK'
