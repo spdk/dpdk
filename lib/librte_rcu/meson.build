@@ -10,3 +10,5 @@ headers = files('rte_rcu_qsbr.h')
 if cc.get_id() == 'clang' and dpdk_conf.get('RTE_ARCH_64') == false
 	ext_deps += cc.find_library('atomic')
 endif
+build = false
+reason = 'not needed by SPDK'

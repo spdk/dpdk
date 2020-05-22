@@ -4,3 +4,5 @@
 sources = files('rte_bitrate.c')
 headers = files('rte_bitrate.h')
 deps += ['ethdev', 'metrics']
+build = false
+reason = 'not needed by SPDK'

@@ -7,3 +7,5 @@ headers = files('rte_bbdev.h',
 		'rte_bbdev_pmd.h',
 		'rte_bbdev_op.h')
 deps += ['mbuf']
+build = false
+reason = 'not needed by SPDK'

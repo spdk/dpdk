@@ -33,3 +33,5 @@ elif dpdk_conf.has('RTE_ARCH_ARM') or dpdk_conf.has('RTE_ARCH_ARM64')
 elif dpdk_conf.has('RTE_ARCH_PPC_64')
 	sources += files('acl_run_altivec.c')
 endif
+build = false
+reason = 'not needed by SPDK'

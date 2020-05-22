@@ -6,3 +6,5 @@ allow_experimental_apis = true
 sources = files('rte_rib.c', 'rte_rib6.c')
 headers = files('rte_rib.h', 'rte_rib6.h')
 deps += ['mempool']
+build = false
+reason = 'not needed by SPDK'

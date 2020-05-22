@@ -9,3 +9,5 @@ sources = files('rte_ipv4_fragmentation.c',
 		'ip_frag_internal.c')
 headers = files('rte_ip_frag.h')
 deps += ['ethdev', 'hash']
+build = false
+reason = 'not needed by SPDK'
