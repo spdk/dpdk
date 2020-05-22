@@ -8,3 +8,5 @@ headers = files('rte_lpm.h', 'rte_lpm6.h')
 headers += files('rte_lpm_altivec.h', 'rte_lpm_neon.h', 'rte_lpm_sse.h')
 deps += ['hash']
 deps += ['rcu']
+build = false
+reason = 'not needed by SPDK'

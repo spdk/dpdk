@@ -3,3 +3,5 @@
 
 sources = files('rte_cfgfile.c')
 headers = files('rte_cfgfile.h')
+build = false
+reason = 'not needed by SPDK'

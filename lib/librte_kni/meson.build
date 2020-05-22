@@ -8,3 +8,5 @@ endif
 sources = files('rte_kni.c')
 headers = files('rte_kni.h')
 deps += ['ethdev', 'pci']
+build = false
+reason = 'not needed by SPDK'

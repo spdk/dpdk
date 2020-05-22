@@ -4,3 +4,5 @@
 sources = files('rte_gro.c', 'gro_tcp4.c', 'gro_vxlan_tcp4.c')
 headers = files('rte_gro.h')
 deps += ['ethdev']
+build = false
+reason = 'not needed by SPDK'

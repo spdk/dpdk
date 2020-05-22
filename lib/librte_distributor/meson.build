@@ -9,3 +9,5 @@ else
 endif
 headers = files('rte_distributor.h')
 deps += ['mbuf']
+build = false
+reason = 'not needed by SPDK'

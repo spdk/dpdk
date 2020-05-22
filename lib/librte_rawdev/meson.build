@@ -5,3 +5,5 @@ sources = files('rte_rawdev.c')
 headers = files('rte_rawdev.h', 'rte_rawdev_pmd.h')
 
 deps += ['telemetry']
+build = false
+reason = 'not needed by SPDK'

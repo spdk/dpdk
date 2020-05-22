@@ -12,3 +12,5 @@ if jansson.found()
 	deps += ['ethdev', 'telemetry']
 	includes += include_directories('../librte_telemetry')
 endif
+build = false
+reason = 'not needed by SPDK'
