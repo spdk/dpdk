@@ -4,3 +4,5 @@
 sources = files('rte_security.c')
 headers = files('rte_security.h', 'rte_security_driver.h')
 deps += ['mempool', 'cryptodev']
+build = false
+reason = 'not needed by SPDK'
