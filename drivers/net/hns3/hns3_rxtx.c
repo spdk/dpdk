@@ -2104,12 +2104,6 @@ hns3_prep_pkts(__rte_unused void *tx_queue, struct rte_mbuf **tx_pkts,
 	for (i = 0; i < nb_pkts; i++) {
 		m = tx_pkts[i];
 
-		/* check the size of packet */
-		if (m->pkt_len < HNS3_MIN_FRAME_LEN) {
-			rte_errno = EINVAL;
-			return i;
-		}
-
 #ifdef RTE_LIBRTE_ETHDEV_DEBUG
 		ret = rte_validate_tx_offload(m);
 		if (ret != 0) {
