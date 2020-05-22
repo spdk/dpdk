@@ -9,3 +9,5 @@ headers = files(
         'rte_sched_common.h',
 )
 deps += ['mbuf', 'meter']
+build = false
+reason = 'not needed by SPDK'

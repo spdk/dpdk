@@ -29,3 +29,5 @@ headers = files(
 )
 deps += ['ring', 'ethdev', 'hash', 'mempool', 'mbuf', 'timer', 'cryptodev']
 deps += ['telemetry']
+build = false
+reason = 'not needed by SPDK'

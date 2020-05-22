@@ -11,3 +11,5 @@ if jansson.found()
 endif
 
 deps += ['ethdev', 'telemetry']
+build = false
+reason = 'not needed by SPDK'

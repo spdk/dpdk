@@ -11,3 +11,5 @@ sources = files(
 )
 headers = files('rte_ip_frag.h')
 deps += ['ethdev', 'hash']
+build = false
+reason = 'not needed by SPDK'

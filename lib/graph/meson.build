@@ -12,3 +12,5 @@ sources = files(
 headers = files('rte_graph.h', 'rte_graph_worker.h')
 
 deps += ['eal']
+build = false
+reason = 'not needed by SPDK'
