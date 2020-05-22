@@ -18,3 +18,5 @@ headers = files(
         'rte_swx_ctl.h',
 )
 deps += ['port', 'table', 'meter', 'sched', 'cryptodev']
+build = false
+reason = 'not needed by SPDK'

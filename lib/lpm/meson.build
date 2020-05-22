@@ -13,3 +13,5 @@ indirect_headers += files(
 )
 deps += ['hash']
 deps += ['rcu']
+build = false
+reason = 'not needed by SPDK'

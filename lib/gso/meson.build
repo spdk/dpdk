@@ -11,3 +11,5 @@ sources = files(
 )
 headers = files('rte_gso.h')
 deps += ['ethdev']
+build = false
+reason = 'not needed by SPDK'

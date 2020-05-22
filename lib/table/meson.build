@@ -40,3 +40,5 @@ indirect_headers += files(
         'rte_lru_x86.h',
         'rte_table_hash_func_arm64.h',
 )
+build = false
+reason = 'not needed by SPDK'
