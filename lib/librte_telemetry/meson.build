@@ -14,3 +14,5 @@ else
 	build = false
 	reason = 'missing dependency "jansson"'
 endif
+build = false
+reason = 'not needed by SPDK'

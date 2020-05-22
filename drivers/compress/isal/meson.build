@@ -3,7 +3,7 @@
 
 dep = dependency('libisal', required: false)
 if not dep.found()
-	build = false
+	build = true
 	reason = 'missing dependency, "libisal"'
 endif
 

@@ -3,3 +3,5 @@
 
 sources = files('rte_jobstats.c')
 headers = files('rte_jobstats.h')
+build = false
+reason = 'not needed by SPDK'

@@ -26,3 +26,5 @@ if dep.found()
 	sources += files('bpf_load_elf.c')
 	ext_deps += dep
 endif
+build = false
+reason = 'not needed by SPDK'

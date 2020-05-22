@@ -28,3 +28,5 @@ deps += ['mbuf', 'port', 'lpm', 'hash', 'acl']
 if arch_subdir == 'x86'
 	headers += files('rte_lru_x86.h')
 endif
+build = false
+reason = 'not needed by SPDK'
