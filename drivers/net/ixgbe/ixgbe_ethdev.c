@@ -2936,8 +2936,6 @@ ixgbe_dev_stop(struct rte_eth_dev *dev)
 
 	adapter->rss_reta_updated = 0;
 
-	adapter->mac_ctrl_frame_fwd = 0;
-
 	hw->adapter_stopped = true;
 }
 
