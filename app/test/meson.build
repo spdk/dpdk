@@ -322,6 +322,10 @@ endif
 # they are used via a driver-specific API.
 if dpdk_conf.has('RTE_LIBRTE_BOND_PMD')
 	test_deps += 'pmd_bond'
+	if dpdk_conf.has('RTE_LIBRTE_RING_PMD')
+		test_sources += 'test_link_bonding_mode4.c'
+		driver_test_names += 'link_bonding_mode4_autotest'
+	endif
 endif
 if dpdk_conf.has('RTE_LIBRTE_RING_PMD')
 	test_deps += 'pmd_ring'
@@ -330,7 +334,6 @@ if dpdk_conf.has('RTE_LIBRTE_RING_PMD')
 	test_sources += 'test_event_eth_tx_adapter.c'
 	test_sources += 'test_bitratestats.c'
 	test_sources += 'test_latencystats.c'
-	test_sources += 'test_link_bonding_mode4.c'
 	test_sources += 'sample_packet_forward.c'
 	test_sources += 'test_pdump.c'
 	fast_test_names += 'ring_pmd_autotest'
@@ -338,7 +341,6 @@ if dpdk_conf.has('RTE_LIBRTE_RING_PMD')
 	fast_test_names += 'event_eth_tx_adapter_autotest'
 	fast_test_names += 'bitratestats_autotest'
 	fast_test_names += 'latencystats_autotest'
-	driver_test_names += 'link_bonding_mode4_autotest'
 	fast_test_names += 'pdump_autotest'
 endif
 
