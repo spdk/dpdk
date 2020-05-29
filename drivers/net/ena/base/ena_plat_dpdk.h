@@ -297,4 +297,6 @@ extern rte_atomic32_t ena_alloc_cnt;
 
 #define DIV_ROUND_UP(n, d) (((n) + (d) - 1) / (d))
 
+#define ENA_FFS(x) ffs(x)
+
 #endif /* DPDK_ENA_COM_ENA_PLAT_DPDK_H_ */
