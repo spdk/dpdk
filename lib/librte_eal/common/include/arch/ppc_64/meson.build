@@ -2,6 +2,7 @@
 # Copyright(c) 2018 Luca Boccassi <bluca@debian.org>
 
 install_headers(
+	'rte_altivec.h',
 	'rte_atomic.h',
 	'rte_byteorder.h',
 	'rte_cpuflags.h',
