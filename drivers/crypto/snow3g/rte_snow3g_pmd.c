@@ -568,6 +568,7 @@ cryptodev_snow3g_create(const char *name,
 
 	dev->feature_flags = RTE_CRYPTODEV_FF_SYMMETRIC_CRYPTO |
 			RTE_CRYPTODEV_FF_SYM_OPERATION_CHAINING |
+			RTE_CRYPTODEV_FF_OOP_LB_IN_LB_OUT |
 			cpu_flags;
 
 	internals = dev->data->dev_private;
