@@ -187,6 +187,10 @@ struct mlx5_dev_spawn_data {
 	struct rte_pci_device *pci_dev; /**< Backend PCI device. */
 };
 
+#ifdef MLX5_GLUE
+const struct mlx5_glue *mlx5_glue;
+#endif
+
 static LIST_HEAD(, mlx5_ibv_shared) mlx5_ibv_list = LIST_HEAD_INITIALIZER();
 static pthread_mutex_t mlx5_ibv_list_mutex = PTHREAD_MUTEX_INITIALIZER;
 

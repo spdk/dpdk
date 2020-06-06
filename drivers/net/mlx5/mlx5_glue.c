@@ -30,10 +30,6 @@
 #include "mlx5_autoconf.h"
 #include "mlx5_glue.h"
 
-#ifdef MLX5_GLUE
-const struct mlx5_glue *mlx5_glue;
-#endif
-
 static int
 mlx5_glue_fork_init(void)
 {
