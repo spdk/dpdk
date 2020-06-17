@@ -867,7 +867,7 @@ mlx5_alloc_table_hash_list(struct mlx5_priv *priv)
 	snprintf(s, sizeof(s), "%s_flow_table", priv->sh->ibdev_name);
 	sh->flow_tbls = mlx5_hlist_create(s, MLX5_FLOW_TABLE_HLIST_ARRAY_SIZE);
 	if (!sh->flow_tbls) {
-		DRV_LOG(ERR, "flow tables with hash creation failed.\n");
+		DRV_LOG(ERR, "flow tables with hash creation failed.");
 		err = ENOMEM;
 		return err;
 	}
@@ -951,7 +951,7 @@ mlx5_alloc_shared_dr(struct mlx5_priv *priv)
 	if (!sh->flow_tbls)
 		err = mlx5_alloc_table_hash_list(priv);
 	else
-		DRV_LOG(DEBUG, "sh->flow_tbls[%p] already created, reuse\n",
+		DRV_LOG(DEBUG, "sh->flow_tbls[%p] already created, reuse",
 			(void *)sh->flow_tbls);
 	if (err)
 		return err;
@@ -959,7 +959,7 @@ mlx5_alloc_shared_dr(struct mlx5_priv *priv)
 	snprintf(s, sizeof(s), "%s_tags", sh->ibdev_name);
 	sh->tag_table = mlx5_hlist_create(s, MLX5_TAGS_HLIST_ARRAY_SIZE);
 	if (!sh->tag_table) {
-		DRV_LOG(ERR, "tags with hash creation failed.\n");
+		DRV_LOG(ERR, "tags with hash creation failed.");
 		err = ENOMEM;
 		goto error;
 	}
