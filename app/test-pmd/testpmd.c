@@ -1698,11 +1698,22 @@ fwd_stats_display(void)
 	       "%s\n",
 	       acc_stats_border, acc_stats_border);
 #ifdef RTE_TEST_PMD_RECORD_CORE_CYCLES
-	if (total_recv > 0)
-		printf("\n  CPU cycles/packet=%u (total cycles="
-		       "%"PRIu64" / total RX packets=%"PRIu64")\n",
-		       (unsigned int)(fwd_cycles / total_recv),
-		       fwd_cycles, total_recv);
+#define CYC_PER_MHZ 1E6
+	if (total_recv > 0 || total_xmit > 0) {
+		uint64_t total_pkts = 0;
+		if (strcmp(cur_fwd_eng->fwd_mode_name, "txonly") == 0 ||
+		    strcmp(cur_fwd_eng->fwd_mode_name, "flowgen") == 0)
+			total_pkts = total_xmit;
+		else
+			total_pkts = total_recv;
+
+		printf("\n  CPU cycles/packet=%.2F (total cycles="
+		       "%"PRIu64" / total %s packets=%"PRIu64") at %"PRIu64
+		       " MHz Clock\n",
+		       (double) fwd_cycles / total_pkts,
+		       fwd_cycles, cur_fwd_eng->fwd_mode_name, total_pkts,
+		       (uint64_t)(rte_get_tsc_hz() / CYC_PER_MHZ));
+	}
 #endif
 }
 
