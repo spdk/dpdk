@@ -13,8 +13,6 @@ qat_deps += 'security'
 if dep.found()
     # Add our sources files to the list
     qat_sources += files(
-            'qat_asym.c',
-            'qat_asym_pmd.c',
             'qat_sym.c',
             'qat_sym_hw_dp.c',
             'qat_sym_pmd.c',
@@ -22,5 +20,4 @@ if dep.found()
 	)
     qat_ext_deps += dep
     qat_cflags += '-DBUILD_QAT_SYM'
-    qat_cflags += '-DBUILD_QAT_ASYM'
 endif
