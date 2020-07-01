@@ -652,7 +652,7 @@ hns3vf_dev_infos_get(struct rte_eth_dev *eth_dev, struct rte_eth_dev_info *info)
 	info->max_rx_queues = q_num;
 	info->max_tx_queues = hw->tqps_num;
 	info->max_rx_pktlen = HNS3_MAX_FRAME_LEN; /* CRC included */
-	info->min_rx_bufsize = hw->rx_buf_len;
+	info->min_rx_bufsize = HNS3_MIN_BD_BUF_SIZE;
 	info->max_mac_addrs = HNS3_VF_UC_MACADDR_NUM;
 	info->max_mtu = info->max_rx_pktlen - HNS3_ETH_OVERHEAD;
 
@@ -816,8 +816,6 @@ hns3vf_check_tqp_info(struct hns3_hw *hw)
 		return -EINVAL;
 	}
 
-	if (hw->rx_buf_len == 0)
-		hw->rx_buf_len = HNS3_DEFAULT_RX_BUF_LEN;
 	hw->alloc_rss_size = RTE_MIN(hw->rss_size_max, hw->tqps_num);
 
 	return 0;
@@ -839,7 +837,6 @@ hns3vf_get_queue_info(struct hns3_hw *hw)
 
 	memcpy(&hw->tqps_num, &resp_msg[0], sizeof(uint16_t));
 	memcpy(&hw->rss_size_max, &resp_msg[2], sizeof(uint16_t));
-	memcpy(&hw->rx_buf_len, &resp_msg[4], sizeof(uint16_t));
 
 	return hns3vf_check_tqp_info(hw);
 }
