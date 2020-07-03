@@ -25,7 +25,8 @@
 #include "ice_generic_flow.h"
 
 
-#define MAX_QGRP_NUM_TYPE 7
+#define MAX_QGRP_NUM_TYPE	7
+#define MAX_INPUT_SET_BYTE	32
 
 #define ICE_SW_INSET_ETHER ( \
 	ICE_INSET_DMAC | ICE_INSET_SMAC | ICE_INSET_ETHERTYPE)
@@ -320,6 +321,7 @@ ice_switch_inset_get(const struct rte_flow_item pattern[],
 		0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
 		0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 	uint64_t input_set = ICE_INSET_NONE;
+	uint16_t input_set_byte = 0;
 	uint16_t j, t = 0;
 	uint16_t tunnel_valid = 0;
 
@@ -369,6 +371,7 @@ ice_switch_inset_get(const struct rte_flow_item pattern[],
 						m->src_addr[j] =
 						eth_mask->src.addr_bytes[j];
 						i = 1;
+						input_set_byte++;
 					}
 					if (eth_mask->dst.addr_bytes[j] ==
 								UINT8_MAX) {
@@ -377,6 +380,7 @@ ice_switch_inset_get(const struct rte_flow_item pattern[],
 						m->dst_addr[j] =
 						eth_mask->dst.addr_bytes[j];
 						i = 1;
+						input_set_byte++;
 					}
 				}
 				if (i)
@@ -387,6 +391,7 @@ ice_switch_inset_get(const struct rte_flow_item pattern[],
 						eth_spec->type;
 					list[t].m_u.ethertype.ethtype_id =
 						UINT16_MAX;
+					input_set_byte += 2;
 					t++;
 				}
 			} else if (!eth_spec && !eth_mask) {
@@ -458,30 +463,35 @@ ice_switch_inset_get(const struct rte_flow_item pattern[],
 						ipv4_spec->hdr.src_addr;
 					list[t].m_u.ipv4_hdr.src_addr =
 						UINT32_MAX;
+					input_set_byte += 2;
 				}
 				if (ipv4_mask->hdr.dst_addr == UINT32_MAX) {
 					list[t].h_u.ipv4_hdr.dst_addr =
 						ipv4_spec->hdr.dst_addr;
 					list[t].m_u.ipv4_hdr.dst_addr =
 						UINT32_MAX;
+					input_set_byte += 2;
 				}
 				if (ipv4_mask->hdr.time_to_live == UINT8_MAX) {
 					list[t].h_u.ipv4_hdr.time_to_live =
 						ipv4_spec->hdr.time_to_live;
 					list[t].m_u.ipv4_hdr.time_to_live =
 						UINT8_MAX;
+					input_set_byte++;
 				}
 				if (ipv4_mask->hdr.next_proto_id == UINT8_MAX) {
 					list[t].h_u.ipv4_hdr.protocol =
 						ipv4_spec->hdr.next_proto_id;
 					list[t].m_u.ipv4_hdr.protocol =
 						UINT8_MAX;
+					input_set_byte++;
 				}
 				if (ipv4_mask->hdr.type_of_service ==
 						UINT8_MAX) {
 					list[t].h_u.ipv4_hdr.tos =
 						ipv4_spec->hdr.type_of_service;
 					list[t].m_u.ipv4_hdr.tos = UINT8_MAX;
+					input_set_byte++;
 				}
 				t++;
 			} else if (!ipv4_spec && !ipv4_mask) {
@@ -563,6 +573,7 @@ ice_switch_inset_get(const struct rte_flow_item pattern[],
 						ipv6_spec->hdr.src_addr[j];
 						s->src_addr[j] =
 						ipv6_mask->hdr.src_addr[j];
+						input_set_byte++;
 					}
 					if (ipv6_mask->hdr.dst_addr[j] ==
 								UINT8_MAX) {
@@ -570,17 +581,20 @@ ice_switch_inset_get(const struct rte_flow_item pattern[],
 						ipv6_spec->hdr.dst_addr[j];
 						s->dst_addr[j] =
 						ipv6_mask->hdr.dst_addr[j];
+						input_set_byte++;
 					}
 				}
 				if (ipv6_mask->hdr.proto == UINT8_MAX) {
 					f->next_hdr =
 						ipv6_spec->hdr.proto;
 					s->next_hdr = UINT8_MAX;
+					input_set_byte++;
 				}
 				if (ipv6_mask->hdr.hop_limits == UINT8_MAX) {
 					f->hop_limit =
 						ipv6_spec->hdr.hop_limits;
 					s->hop_limit = UINT8_MAX;
+					input_set_byte++;
 				}
 				if ((ipv6_mask->hdr.vtc_flow &
 						rte_cpu_to_be_32
@@ -597,6 +611,7 @@ ice_switch_inset_get(const struct rte_flow_item pattern[],
 					f->be_ver_tc_flow = CPU_TO_BE32(vtf.u.val);
 					vtf.u.fld.tc = UINT8_MAX;
 					s->be_ver_tc_flow = CPU_TO_BE32(vtf.u.val);
+					input_set_byte += 4;
 				}
 				t++;
 			} else if (!ipv6_spec && !ipv6_mask) {
@@ -648,14 +663,16 @@ ice_switch_inset_get(const struct rte_flow_item pattern[],
 						udp_spec->hdr.src_port;
 					list[t].m_u.l4_hdr.src_port =
 						udp_mask->hdr.src_port;
+					input_set_byte += 2;
 				}
 				if (udp_mask->hdr.dst_port == UINT16_MAX) {
 					list[t].h_u.l4_hdr.dst_port =
 						udp_spec->hdr.dst_port;
 					list[t].m_u.l4_hdr.dst_port =
 						udp_mask->hdr.dst_port;
+					input_set_byte += 2;
 				}
-						t++;
+				t++;
 			} else if (!udp_spec && !udp_mask) {
 				list[t].type = ICE_UDP_ILOS;
 			}
@@ -705,12 +722,14 @@ ice_switch_inset_get(const struct rte_flow_item pattern[],
 						tcp_spec->hdr.src_port;
 					list[t].m_u.l4_hdr.src_port =
 						tcp_mask->hdr.src_port;
+					input_set_byte += 2;
 				}
 				if (tcp_mask->hdr.dst_port == UINT16_MAX) {
 					list[t].h_u.l4_hdr.dst_port =
 						tcp_spec->hdr.dst_port;
 					list[t].m_u.l4_hdr.dst_port =
 						tcp_mask->hdr.dst_port;
+					input_set_byte += 2;
 				}
 				t++;
 			} else if (!tcp_spec && !tcp_mask) {
@@ -756,12 +775,14 @@ ice_switch_inset_get(const struct rte_flow_item pattern[],
 						sctp_spec->hdr.src_port;
 					list[t].m_u.sctp_hdr.src_port =
 						sctp_mask->hdr.src_port;
+					input_set_byte += 2;
 				}
 				if (sctp_mask->hdr.dst_port == UINT16_MAX) {
 					list[t].h_u.sctp_hdr.dst_port =
 						sctp_spec->hdr.dst_port;
 					list[t].m_u.sctp_hdr.dst_port =
 						sctp_mask->hdr.dst_port;
+					input_set_byte += 2;
 				}
 				t++;
 			} else if (!sctp_spec && !sctp_mask) {
@@ -799,6 +820,7 @@ ice_switch_inset_get(const struct rte_flow_item pattern[],
 						UINT32_MAX;
 					input_set |=
 						ICE_INSET_TUN_VXLAN_VNI;
+					input_set_byte += 2;
 				}
 				t++;
 			} else if (!vxlan_spec && !vxlan_mask) {
@@ -835,6 +857,7 @@ ice_switch_inset_get(const struct rte_flow_item pattern[],
 						UINT32_MAX;
 					input_set |=
 						ICE_INSET_TUN_NVGRE_TNI;
+					input_set_byte += 2;
 				}
 				t++;
 			} else if (!nvgre_spec && !nvgre_mask) {
@@ -865,6 +888,7 @@ ice_switch_inset_get(const struct rte_flow_item pattern[],
 					list[t].m_u.vlan_hdr.vlan =
 						UINT16_MAX;
 					input_set |= ICE_INSET_VLAN_OUTER;
+					input_set_byte += 2;
 				}
 				if (vlan_mask->inner_type == UINT16_MAX) {
 					list[t].h_u.vlan_hdr.type =
@@ -872,6 +896,7 @@ ice_switch_inset_get(const struct rte_flow_item pattern[],
 					list[t].m_u.vlan_hdr.type =
 						UINT16_MAX;
 					input_set |= ICE_INSET_ETHERTYPE;
+					input_set_byte += 2;
 				}
 				t++;
 			} else if (!vlan_spec && !vlan_mask) {
@@ -904,6 +929,14 @@ ice_switch_inset_get(const struct rte_flow_item pattern[],
 				   "Invalid pattern item.");
 			goto out;
 		}
+	}
+
+	if (input_set_byte > MAX_INPUT_SET_BYTE) {
+		rte_flow_error_set(error, EINVAL,
+			RTE_FLOW_ERROR_TYPE_ITEM,
+			item,
+			"too much input set");
+		return -ENOTSUP;
 	}
 
 	*lkups_num = t;
