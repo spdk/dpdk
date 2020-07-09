@@ -1746,9 +1746,9 @@ done:
 		}
 
 		STAILQ_INSERT_TAIL(&vnic->filter, filter, next);
-		PMD_DRV_LOG(DEBUG, "Successfully created flow.\n");
 		STAILQ_INSERT_TAIL(&vnic->flow_list, flow, next);
 		bnxt_release_flow_lock(bp);
+		PMD_DRV_LOG(DEBUG, "Successfully created flow.\n");
 		return flow;
 	}
 
@@ -1839,11 +1839,7 @@ _bnxt_flow_destroy(struct bnxt *bp,
 	if (ret == 0)
 		PMD_DRV_LOG(ERR, "Could not find matching flow\n");
 
-	if (filter->filter_type == HWRM_CFA_EM_FILTER)
-		ret = bnxt_hwrm_clear_em_filter(bp, filter);
-	if (filter->filter_type == HWRM_CFA_NTUPLE_FILTER)
-		ret = bnxt_hwrm_clear_ntuple_filter(bp, filter);
-	ret = bnxt_hwrm_clear_l2_filter(bp, filter);
+	ret = bnxt_clear_one_vnic_filter(bp, filter);
 
 done:
 	if (!ret) {

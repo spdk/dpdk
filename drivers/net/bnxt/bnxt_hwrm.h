@@ -229,4 +229,6 @@ int bnxt_hwrm_error_recovery_qcfg(struct bnxt *bp);
 int bnxt_hwrm_fw_reset(struct bnxt *bp);
 int bnxt_hwrm_port_ts_query(struct bnxt *bp, uint8_t path,
 			    uint64_t *timestamp);
+int bnxt_clear_one_vnic_filter(struct bnxt *bp,
+			       struct bnxt_filter_info *filter);
 #endif
