@@ -4723,10 +4723,6 @@ static int bnxt_init_fw(struct bnxt *bp)
 	if (rc)
 		return rc;
 
-	rc = bnxt_hwrm_cfa_adv_flow_mgmt_qcaps(bp);
-	if (rc)
-		return rc;
-
 	/* Get the adapter error recovery support info */
 	rc = bnxt_hwrm_error_recovery_qcfg(bp);
 	if (rc)

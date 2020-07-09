@@ -541,8 +541,6 @@ struct bnxt {
 #define BNXT_FW_CAP_ERROR_RECOVERY	BIT(2)
 #define BNXT_FW_CAP_ERR_RECOVER_RELOAD	BIT(3)
 
-	uint32_t		flow_flags;
-#define BNXT_FLOW_FLAG_L2_HDR_SRC_FILTER_EN	BIT(0)
 	pthread_mutex_t         flow_lock;
 
 	uint32_t		vnic_cap_flags;

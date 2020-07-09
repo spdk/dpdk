@@ -5068,35 +5068,3 @@ int bnxt_hwrm_port_ts_query(struct bnxt *bp, uint8_t path, uint64_t *timestamp)
 
 	return rc;
 }
-
-int bnxt_hwrm_cfa_adv_flow_mgmt_qcaps(struct bnxt *bp)
-{
-	struct hwrm_cfa_adv_flow_mgnt_qcaps_output *resp =
-					bp->hwrm_cmd_resp_addr;
-	struct hwrm_cfa_adv_flow_mgnt_qcaps_input req = {0};
-	uint32_t flags = 0;
-	int rc = 0;
-
-	if (!(bp->flags & BNXT_FLAG_ADV_FLOW_MGMT))
-		return rc;
-
-	if (!(BNXT_PF(bp) || BNXT_VF_IS_TRUSTED(bp))) {
-		PMD_DRV_LOG(DEBUG,
-			    "Not a PF or trusted VF. Command not supported\n");
-		return 0;
-	}
-
-	HWRM_PREP(req, CFA_ADV_FLOW_MGNT_QCAPS, BNXT_USE_KONG(bp));
-	rc = bnxt_hwrm_send_message(bp, &req, sizeof(req), BNXT_USE_KONG(bp));
-
-	HWRM_CHECK_RESULT();
-	flags = rte_le_to_cpu_32(resp->flags);
-	HWRM_UNLOCK();
-
-	if (flags & HWRM_CFA_ADV_FLOW_MGNT_QCAPS_L2_HDR_SRC_FILTER_EN) {
-		bp->flow_flags |= BNXT_FLOW_FLAG_L2_HDR_SRC_FILTER_EN;
-		PMD_DRV_LOG(INFO, "Source L2 header filtering enabled\n");
-	}
-
-	return rc;
-}
