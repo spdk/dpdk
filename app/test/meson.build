@@ -362,6 +362,9 @@ endif
 # specify -D_GNU_SOURCE unconditionally
 cflags += '-D_GNU_SOURCE'
 
+# Enable using internal APIs in unit tests
+cflags += ['-DALLOW_INTERNAL_API']
+
 test_dep_objs = []
 if dpdk_conf.has('RTE_LIBRTE_COMPRESSDEV')
 	compress_test_dep = dependency('zlib', required: false)
