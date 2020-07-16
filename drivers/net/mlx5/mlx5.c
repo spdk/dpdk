@@ -687,6 +687,12 @@ mlx5_alloc_shared_ibctx(const struct mlx5_dev_spawn_data *spawn,
 		goto error;
 	}
 #endif /* HAVE_IBV_FLOW_DV_SUPPORT */
+#ifndef RTE_ARCH_64
+	/* Initialize UAR access locks for 32bit implementations. */
+	rte_spinlock_init(&sh->uar_lock_cq);
+	for (i = 0; i < MLX5_UAR_PAGE_NUM_MAX; i++)
+		rte_spinlock_init(&sh->uar_lock[i]);
+#endif
 	/*
 	 * Once the device is added to the list of memory event
 	 * callback, its global MR cache table cannot be expanded
@@ -2399,12 +2405,6 @@ err_secondary:
 	priv->ibv_port = spawn->ibv_port;
 	priv->pci_dev = spawn->pci_dev;
 	priv->mtu = RTE_ETHER_MTU;
-#ifndef RTE_ARCH_64
-	/* Initialize UAR access locks for 32bit implementations. */
-	rte_spinlock_init(&priv->uar_lock_cq);
-	for (i = 0; i < MLX5_UAR_PAGE_NUM_MAX; i++)
-		rte_spinlock_init(&priv->uar_lock[i]);
-#endif
 	/* Some internal functions rely on Netlink sockets, open them now. */
 	priv->nl_socket_rdma = mlx5_nl_init(NETLINK_RDMA);
 	priv->nl_socket_route =	mlx5_nl_init(NETLINK_ROUTE);
