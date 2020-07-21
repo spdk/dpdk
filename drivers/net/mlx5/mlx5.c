@@ -2033,7 +2033,7 @@ mlx5_get_dbr(struct rte_eth_dev *dev, struct mlx5_devx_dbr_page **dbr_page)
 	page->dbr_bitmap[i] |= (UINT64_C(1) << j);
 	page->dbr_count++;
 	*dbr_page = page;
-	return (((i * 64) + j) * sizeof(uint64_t));
+	return (i * CHAR_BIT * sizeof(uint64_t) + j) * MLX5_DBR_SIZE;
 }
 
 /**
