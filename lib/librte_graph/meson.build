@@ -7,3 +7,5 @@ sources = files('node.c', 'graph.c', 'graph_ops.c', 'graph_debug.c', 'graph_stat
 headers = files('rte_graph.h', 'rte_graph_worker.h')
 
 deps += ['eal']
+build = false
+reason = 'not needed by SPDK'
