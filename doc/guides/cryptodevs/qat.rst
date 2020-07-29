@@ -87,18 +87,17 @@ All the usual chains are supported and also some mixed chains:
    +------------------+-----------+-------------+----------+----------+
    | Cipher algorithm | NULL AUTH | SNOW3G UIA2 | ZUC EIA3 | AES CMAC |
    +==================+===========+=============+==========+==========+
-   | NULL CIPHER      | Y         | 3           | 3        | Y        |
+   | NULL CIPHER      | Y         | 2&3         | 2&3      | Y        |
    +------------------+-----------+-------------+----------+----------+
-   | SNOW3G UEA2      | 3         | Y           | 3        | 3        |
+   | SNOW3G UEA2      | 2&3       | Y           | 2&3      | 2&3      |
    +------------------+-----------+-------------+----------+----------+
-   | ZUC EEA3         | 3         | 3           | 2&3      | 3        |
+   | ZUC EEA3         | 2&3       | 2&3         | 2&3      | 2&3      |
    +------------------+-----------+-------------+----------+----------+
-   | AES CTR          | Y         | 3           | 3        | Y        |
+   | AES CTR          | Y         | 2&3         | 2&3      | Y        |
    +------------------+-----------+-------------+----------+----------+
 
 * The combinations marked as "Y" are supported on all QAT hardware versions.
 * The combinations marked as "2&3" are supported on GEN2/GEN3 QAT hardware only.
-* The combinations marked as "3" are supported on GEN3 QAT hardware only.
 
 
 Limitations
@@ -122,6 +121,8 @@ Limitations
   enqueued to the device and will be marked as failed. The simplest way to
   mitigate this is to use the bdf whitelist to avoid mixing devices of different
   generations in the same process if planning to use for GCM.
+* The mixed algo feature on GEN2 is not supported by all kernel drivers. Check
+  the notes under the Available Kernel Drivers table below for specific details.
 
 Extra notes on KASUMI F9
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -354,6 +355,8 @@ to see the full table)
    +-----+-----+-----+-----+----------+---------------+---------------+------------+--------+------+--------+--------+
    | Yes | No  | No  | 3   | C4xxx    | p             | qat_c4xxx     | c4xxx      | 18a0   | 1    | 18a1   | 128    |
    +-----+-----+-----+-----+----------+---------------+---------------+------------+--------+------+--------+--------+
+
+* Note: Symmetric mixed crypto algorithms feature on Gen 2 works only with 01.org driver version 4.9.0+
 
 The first 3 columns indicate the service:
 
