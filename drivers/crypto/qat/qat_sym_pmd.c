@@ -177,6 +177,7 @@ static int qat_sym_qp_setup(struct rte_cryptodev *dev, uint16_t qp_id,
 							= *qp_addr;
 
 	qp = (struct qat_qp *)*qp_addr;
+	qp->min_enq_burst_threshold = qat_private->min_enq_burst_threshold;
 
 	for (i = 0; i < qp->nb_descriptors; i++) {
 
@@ -270,8 +271,10 @@ static const struct rte_driver cryptodev_qat_sym_driver = {
 };
 
 int
-qat_sym_dev_create(struct qat_pci_device *qat_pci_dev)
+qat_sym_dev_create(struct qat_pci_device *qat_pci_dev,
+		struct qat_dev_cmd_param *qat_dev_cmd_param __rte_unused)
 {
+	int i = 0;
 	struct qat_device_info *qat_dev_instance =
 			&qat_pci_devs[qat_pci_dev->qat_dev_id];
 
@@ -391,6 +394,15 @@ qat_sym_dev_create(struct qat_pci_device *qat_pci_dev)
 
 	memcpy(internals->capa_mz->addr, capabilities, capa_size);
 	internals->qat_dev_capabilities = internals->capa_mz->addr;
+
+	while (1) {
+		if (qat_dev_cmd_param[i].name == NULL)
+			break;
+		if (!strcmp(qat_dev_cmd_param[i].name, SYM_ENQ_THRESHOLD_NAME))
+			internals->min_enq_burst_threshold =
+					qat_dev_cmd_param[i].val;
+		i++;
+	}
 
 	qat_pci_dev->sym_dev = internals;
 	QAT_LOG(DEBUG, "Created QAT SYM device %s as cryptodev instance %d",

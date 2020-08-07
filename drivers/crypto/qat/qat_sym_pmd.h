@@ -35,10 +35,12 @@ struct qat_sym_dev_private {
 	uint32_t internal_capabilities; /* see flags QAT_SYM_CAP_xxx */
 	const struct rte_memzone *capa_mz;
 	/* Shared memzone for storing capabilities */
+	uint16_t min_enq_burst_threshold;
 };
 
 int
-qat_sym_dev_create(struct qat_pci_device *qat_pci_dev);
+qat_sym_dev_create(struct qat_pci_device *qat_pci_dev,
+		struct qat_dev_cmd_param *qat_dev_cmd_param);
 
 int
 qat_sym_dev_destroy(struct qat_pci_device *qat_pci_dev);

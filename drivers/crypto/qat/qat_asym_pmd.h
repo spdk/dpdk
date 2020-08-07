@@ -28,6 +28,7 @@ struct qat_asym_dev_private {
 	/* QAT device asymmetric crypto capabilities */
 	const struct rte_memzone *capa_mz;
 	/* Shared memzone for storing capabilities */
+	uint16_t min_enq_burst_threshold;
 };
 
 uint16_t
@@ -44,7 +45,8 @@ int qat_asym_session_configure(struct rte_cryptodev *dev,
 		struct rte_mempool *mempool);
 
 int
-qat_asym_dev_create(struct qat_pci_device *qat_pci_dev);
+qat_asym_dev_create(struct qat_pci_device *qat_pci_dev,
+		struct qat_dev_cmd_param *qat_dev_cmd_param);
 
 int
 qat_asym_dev_destroy(struct qat_pci_device *qat_pci_dev);
