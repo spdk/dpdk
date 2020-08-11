@@ -1478,6 +1478,7 @@ flow_verbs_translate(struct rte_eth_dev *dev,
 	uint64_t priority = attr->priority;
 	uint32_t subpriority = 0;
 	struct mlx5_priv *priv = dev->data->dev_private;
+	struct rte_flow *flow = dev_flow->flow;
 
 	if (priority == MLX5_FLOW_PRIO_RSVD)
 		priority = priv->config.flow_prio - 1;
@@ -1596,25 +1597,33 @@ flow_verbs_translate(struct rte_eth_dev *dev,
 		case RTE_FLOW_ITEM_TYPE_VXLAN:
 			flow_verbs_translate_item_vxlan(dev_flow, items,
 							item_flags);
-			subpriority = MLX5_PRIORITY_MAP_L2;
+			subpriority = flow->rss.level >= 2 ?
+					MLX5_PRIORITY_MAP_L2 :
+					MLX5_PRIORITY_MAP_L4;
 			item_flags |= MLX5_FLOW_LAYER_VXLAN;
 			break;
 		case RTE_FLOW_ITEM_TYPE_VXLAN_GPE:
 			flow_verbs_translate_item_vxlan_gpe(dev_flow, items,
 							    item_flags);
-			subpriority = MLX5_PRIORITY_MAP_L2;
+			subpriority = flow->rss.level >= 2 ?
+					MLX5_PRIORITY_MAP_L2 :
+					MLX5_PRIORITY_MAP_L4;
 			item_flags |= MLX5_FLOW_LAYER_VXLAN_GPE;
 			break;
 		case RTE_FLOW_ITEM_TYPE_GRE:
 			flow_verbs_translate_item_gre(dev_flow, items,
 						      item_flags);
-			subpriority = MLX5_PRIORITY_MAP_L2;
+			subpriority = flow->rss.level >= 2 ?
+					MLX5_PRIORITY_MAP_L2 :
+					MLX5_PRIORITY_MAP_L4;
 			item_flags |= MLX5_FLOW_LAYER_GRE;
 			break;
 		case RTE_FLOW_ITEM_TYPE_MPLS:
 			flow_verbs_translate_item_mpls(dev_flow, items,
 						       item_flags);
-			subpriority = MLX5_PRIORITY_MAP_L2;
+			subpriority = flow->rss.level >= 2 ?
+					MLX5_PRIORITY_MAP_L2 :
+					MLX5_PRIORITY_MAP_L4;
 			item_flags |= MLX5_FLOW_LAYER_MPLS;
 			break;
 		default:
