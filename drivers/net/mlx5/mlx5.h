@@ -486,7 +486,8 @@ struct mlx5_flow_counter {
 	uint32_t shared:1; /**< Share counter ID with other flow rules. */
 	uint32_t batch: 1;
 	/**< Whether the counter was allocated by batch command. */
-	uint32_t ref_cnt:30; /**< Reference counter. */
+	uint32_t ref_cnt:29; /**< Reference counter. */
+	uint32_t skipped:1; /* This counter is skipped or not. */
 	uint32_t id; /**< Counter ID. */
 	union {  /**< Holds the counters for the rule. */
 #if defined(HAVE_IBV_DEVICE_COUNTERS_SET_V42)
@@ -518,6 +519,7 @@ struct mlx5_flow_counter_pool {
 	/* The devx object of the minimum counter ID. */
 	rte_atomic64_t query_gen;
 	uint32_t n_counters: 16; /* Number of devx allocated counters. */
+	uint32_t skip_cnt:1; /* Pool contains skipped counter. */
 	rte_spinlock_t sl; /* The pool lock. */
 	struct mlx5_counter_stats_raw *raw;
 	struct mlx5_counter_stats_raw *raw_hw; /* The raw on HW working. */
