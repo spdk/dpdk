@@ -281,6 +281,9 @@ static void clear_filter(struct filter_entry *f)
 	if (f->clipt)
 		cxgbe_clip_release(f->dev, f->clipt);
 
+	if (f->l2t)
+		cxgbe_l2t_release(f->l2t);
+
 	if (f->fs.mask.macidx)
 		cxgbe_mpstcam_remove(pi, f->fs.val.macidx);
 
@@ -735,19 +738,6 @@ static int set_filter_wr(struct rte_eth_dev *dev, unsigned int fidx)
 	unsigned int port_id = ethdev2pinfo(dev)->port_id;
 	int ret;
 
-	/*
-	 * If the new filter requires loopback Destination MAC and/or VLAN
-	 * rewriting then we need to allocate a Layer 2 Table (L2T) entry for
-	 * the filter.
-	 */
-	if (f->fs.newvlan) {
-		/* allocate L2T entry for new filter */
-		f->l2t = cxgbe_l2t_alloc_switching(f->dev, f->fs.vlan,
-						   f->fs.eport, f->fs.dmac);
-		if (!f->l2t)
-			return -ENOMEM;
-	}
-
 	ctrlq = &adapter->sge.ctrlq[port_id];
 	mbuf = rte_pktmbuf_alloc(ctrlq->mb_pool);
 	if (!mbuf) {
@@ -1052,6 +1042,19 @@ int cxgbe_set_filter(struct rte_eth_dev *dev, unsigned int filter_id,
 	    memcmp(f->fs.val.lip, bitoff, sizeof(bitoff))) {
 		f->clipt = cxgbe_clip_alloc(dev, (u32 *)&f->fs.val.lip);
 		if (!f->clipt) {
+			ret = -ENOMEM;
+			goto free_tid;
+		}
+	}
+
+	/* If the new filter requires loopback Destination MAC and/or VLAN
+	 * rewriting then we need to allocate a Layer 2 Table (L2T) entry for
+	 * the filter.
+	 */
+	if (f->fs.newvlan) {
+		f->l2t = cxgbe_l2t_alloc_switching(f->dev, f->fs.vlan,
+						   f->fs.eport, f->fs.dmac);
+		if (!f->l2t) {
 			ret = -ENOMEM;
 			goto free_tid;
 		}
