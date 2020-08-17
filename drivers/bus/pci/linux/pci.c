@@ -330,8 +330,8 @@ pci_scan_one(const char *dirname, const struct rte_pci_addr *addr)
 			dev->kdrv = RTE_KDRV_UIO_GENERIC;
 		else
 			dev->kdrv = RTE_KDRV_UNKNOWN;
-	} else {
-		dev->kdrv = RTE_KDRV_NONE;
+	} else { /* no kernel driver */
+		free(dev);
 		return 0;
 	}
 	/* device is valid, add in list (sorted) */
