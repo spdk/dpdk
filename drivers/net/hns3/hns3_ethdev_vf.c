@@ -1458,8 +1458,6 @@ hns3vf_init_vf(struct rte_eth_dev *eth_dev)
 		goto err_get_config;
 	}
 
-	rte_eth_random_addr(hw->mac.mac_addr); /* Generate a random mac addr */
-
 	ret = hns3vf_clear_vport_list(hw);
 	if (ret) {
 		PMD_INIT_LOG(ERR, "Failed to clear tbl list: %d", ret);
@@ -2253,8 +2251,10 @@ hns3vf_dev_init(struct rte_eth_dev *eth_dev)
 		goto err_rte_zmalloc;
 	}
 
+	rte_eth_random_addr(hw->mac.mac_addr); /* Generate a random mac addr */
 	rte_ether_addr_copy((struct rte_ether_addr *)hw->mac.mac_addr,
 			    &eth_dev->data->mac_addrs[0]);
+
 	hw->adapter_state = HNS3_NIC_INITIALIZED;
 	/*
 	 * Pass the information to the rte_eth_dev_close() that it should also
