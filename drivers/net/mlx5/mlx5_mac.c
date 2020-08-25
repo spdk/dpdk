@@ -11,7 +11,6 @@
 #include <errno.h>
 #include <netinet/in.h>
 #include <sys/ioctl.h>
-#include <arpa/inet.h>
 
 /* Verbs header. */
 /* ISO C doesn't support unnamed structs/unions, disabling -pedantic. */

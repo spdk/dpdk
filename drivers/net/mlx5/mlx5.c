@@ -13,7 +13,6 @@
 #include <errno.h>
 #include <net/if.h>
 #include <fcntl.h>
-#include <sys/mman.h>
 #include <linux/rtnetlink.h>
 
 /* Verbs header. */
