@@ -54,7 +54,7 @@
 #endif
 #include <rte_flow.h>
 #include <rte_metrics.h>
-#ifdef RTE_LIBRTE_BITRATE
+#ifdef RTE_LIBRTE_BITRATESTATS
 #include <rte_bitrate.h>
 #endif
 #ifdef RTE_LIBRTE_LATENCY_STATS
@@ -471,7 +471,7 @@ uint8_t xstats_hide_zero;
 unsigned int num_sockets = 0;
 unsigned int socket_ids[RTE_MAX_NUMA_NODES];
 
-#ifdef RTE_LIBRTE_BITRATE
+#ifdef RTE_LIBRTE_BITRATESTATS
 /* Bitrate statistics */
 struct rte_stats_bitrates *bitrate_data;
 lcoreid_t bitrate_lcore_id;
@@ -1970,7 +1970,7 @@ run_pkt_fwd_on_lcore(struct fwd_lcore *fc, packet_fwd_t pkt_fwd)
 	struct fwd_stream **fsm;
 	streamid_t nb_fs;
 	streamid_t sm_id;
-#ifdef RTE_LIBRTE_BITRATE
+#ifdef RTE_LIBRTE_BITRATESTATS
 	uint64_t tics_per_1sec;
 	uint64_t tics_datum;
 	uint64_t tics_current;
@@ -1985,7 +1985,7 @@ run_pkt_fwd_on_lcore(struct fwd_lcore *fc, packet_fwd_t pkt_fwd)
 	do {
 		for (sm_id = 0; sm_id < nb_fs; sm_id++)
 			(*pkt_fwd)(fsm[sm_id]);
-#ifdef RTE_LIBRTE_BITRATE
+#ifdef RTE_LIBRTE_BITRATESTATS
 		if (bitrate_enabled != 0 &&
 				bitrate_lcore_id == rte_lcore_id()) {
 			tics_current = rte_rdtsc();
@@ -3609,7 +3609,7 @@ main(int argc, char** argv)
 			 "Check the core mask argument\n");
 
 	/* Bitrate/latency stats disabled by default */
-#ifdef RTE_LIBRTE_BITRATE
+#ifdef RTE_LIBRTE_BITRATESTATS
 	bitrate_enabled = 0;
 #endif
 #ifdef RTE_LIBRTE_LATENCY_STATS
@@ -3703,7 +3703,7 @@ main(int argc, char** argv)
 #endif
 
 	/* Setup bitrate stats */
-#ifdef RTE_LIBRTE_BITRATE
+#ifdef RTE_LIBRTE_BITRATESTATS
 	if (bitrate_enabled != 0) {
 		bitrate_data = rte_stats_bitrate_create();
 		if (bitrate_data == NULL)
