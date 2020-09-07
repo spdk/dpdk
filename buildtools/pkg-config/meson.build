@@ -1,6 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright(c) 2020 Intel Corporation
 
+# for static builds, include the drivers as libs and we need to "whole-archive"
+# them.
+dpdk_drivers = ['-Wl,--whole-archive'] + dpdk_drivers + ['-Wl,--no-whole-archive']
+
 pkg = import('pkgconfig')
 pkg_extra_cflags = ['-include', 'rte_config.h'] + machine_args
 if is_freebsd
@@ -18,9 +22,6 @@ endif
 # and those need to come *before* the regular libraries (Libs field).
 # This requirement is satisfied by moving the regular libs in a separate file
 # included in the field Requires (after Libs.private).
-# Another requirement is to allow linking dependencies as shared libraries,
-# while linking static DPDK libraries and drivers. It is satisfied by
-# listing the static files in Libs.private with the explicit syntax -l:libfoo.a.
 
 pkg.generate(name: 'dpdk-libs',
 	filebase: 'libdpdk-libs',
@@ -40,11 +41,6 @@ Note that CFLAGS might contain an -march flag higher than typical baseline.
 This is required for a number of static inline functions in the public headers.''',
 	requires: ['libdpdk-libs', libbsd], # may need libbsd for string funcs
 	                  # if libbsd is not enabled, then this is blank
-	libraries_private: ['-Wl,--whole-archive'] +
-			dpdk_drivers + dpdk_static_libraries +
-			['-Wl,--no-whole-archive']
+	libraries_private: dpdk_drivers + dpdk_static_libraries +
+			['-Wl,-Bdynamic']
 )
-
-# For static linking with dependencies as shared libraries,
-# the internal static libraries must be flagged explicitly.
-run_command(py3, 'set-static-linker-flags.py', check: true)
