@@ -826,7 +826,8 @@ pci_vfio_map_resource_primary(struct rte_pci_device *dev)
 err_vfio_res:
 	rte_free(vfio_res);
 err_vfio_dev_fd:
-	close(vfio_dev_fd);
+	rte_vfio_release_device(rte_pci_get_sysfs_path(),
+			pci_addr, vfio_dev_fd);
 	return -1;
 }
 
@@ -894,7 +895,8 @@ pci_vfio_map_resource_secondary(struct rte_pci_device *dev)
 
 	return 0;
 err_vfio_dev_fd:
-	close(vfio_dev_fd);
+	rte_vfio_release_device(rte_pci_get_sysfs_path(),
+			pci_addr, vfio_dev_fd);
 	return -1;
 }
 
