@@ -1246,6 +1246,9 @@ iavf_init_vf(struct rte_eth_dev *dev)
 			goto err_rss;
 		}
 	}
+
+	vf->vf_reset = false;
+
 	return 0;
 err_rss:
 	rte_free(vf->rss_key);
