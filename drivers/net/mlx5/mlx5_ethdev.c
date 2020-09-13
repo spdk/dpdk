@@ -1946,12 +1946,13 @@ int mlx5_get_module_eeprom(struct rte_eth_dev *dev,
  * @return
  *   0 on success, a negative errno value otherwise and rte_errno is set.
  */
-int mlx5_hairpin_cap_get(struct rte_eth_dev *dev,
-			 struct rte_eth_hairpin_cap *cap)
+int
+mlx5_hairpin_cap_get(struct rte_eth_dev *dev, struct rte_eth_hairpin_cap *cap)
 {
 	struct mlx5_priv *priv = dev->data->dev_private;
+	struct mlx5_dev_config *config = &priv->config;
 
-	if (priv->sh->devx == 0) {
+	if (!priv->sh->devx || !config->dest_tir || !config->dv_flow_en) {
 		rte_errno = ENOTSUP;
 		return -rte_errno;
 	}
