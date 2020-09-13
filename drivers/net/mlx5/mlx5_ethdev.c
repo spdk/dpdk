@@ -1226,6 +1226,7 @@ mlx5_dev_to_pci_addr(const char *dev_path,
 {
 	FILE *file;
 	char line[32];
+	int rc = -ENOENT;
 	MKSTR(path, "%s/device/uevent", dev_path);
 
 	file = fopen(path, "rb");
@@ -1235,16 +1236,18 @@ mlx5_dev_to_pci_addr(const char *dev_path,
 	}
 	while (fgets(line, sizeof(line), file) == line) {
 		size_t len = strlen(line);
-		int ret;
 
 		/* Truncate long lines. */
-		if (len == (sizeof(line) - 1))
+		if (len == (sizeof(line) - 1)) {
 			while (line[(len - 1)] != '\n') {
-				ret = fgetc(file);
+				int ret = fgetc(file);
 				if (ret == EOF)
-					break;
+					goto exit;
 				line[(len - 1)] = ret;
 			}
+			/* No match for long lines. */
+			continue;
+		}
 		/* Extract information. */
 		if (sscanf(line,
 			   "PCI_SLOT_NAME="
@@ -1253,12 +1256,15 @@ mlx5_dev_to_pci_addr(const char *dev_path,
 			   &pci_addr->bus,
 			   &pci_addr->devid,
 			   &pci_addr->function) == 4) {
-			ret = 0;
+			rc = 0;
 			break;
 		}
 	}
+exit:
 	fclose(file);
-	return 0;
+	if (rc)
+		rte_errno = -rc;
+	return rc;
 }
 
 /**
