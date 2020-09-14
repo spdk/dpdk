@@ -1343,7 +1343,7 @@ vq_is_ready(struct virtio_net *dev, struct vhost_virtqueue *vq)
 	       vq->enabled;
 }
 
-#define VIRTIO_DEV_NUM_VQS_TO_BE_READY 2u
+#define VIRTIO_DEV_NUM_VQS_TO_BE_READY 1u
 
 static int
 virtio_is_ready(struct virtio_net *dev)
