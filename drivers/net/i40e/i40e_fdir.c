@@ -1647,6 +1647,8 @@ i40e_flow_add_del_fdir_filter(struct rte_eth_dev *dev,
 			rte_free(fdir_filter);
 	} else {
 		ret = i40e_sw_fdir_filter_del(pf, &node->fdir.input);
+		if (ret >= 0)
+			pf->fdir.flex_mask_flag[pctype] = 0;
 	}
 
 	return ret;
