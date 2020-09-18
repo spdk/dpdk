@@ -518,8 +518,8 @@ otx2_cpt_enqueue_sym_sessless(struct otx2_cpt_qp *qp, struct rte_crypto_op *op,
 	int ret;
 
 	/* Create temporary session */
-
-	if (rte_mempool_get(qp->sess_mp, (void **)&sess))
+	sess = rte_cryptodev_sym_session_create(qp->sess_mp);
+	if (sess == NULL)
 		return -ENOMEM;
 
 	ret = sym_session_configure(driver_id, sym_op->xform, sess,
@@ -671,6 +671,8 @@ static inline void
 otx2_cpt_dequeue_post_process(struct otx2_cpt_qp *qp, struct rte_crypto_op *cop,
 			      uintptr_t *rsp, uint8_t cc)
 {
+	unsigned int sz;
+
 	if (cop->type == RTE_CRYPTO_OP_TYPE_SYMMETRIC) {
 		if (likely(cc == NO_ERR)) {
 			/* Verify authentication data if required */
@@ -689,6 +691,9 @@ otx2_cpt_dequeue_post_process(struct otx2_cpt_qp *qp, struct rte_crypto_op *cop,
 		if (unlikely(cop->sess_type == RTE_CRYPTO_OP_SESSIONLESS)) {
 			sym_session_clear(otx2_cryptodev_driver_id,
 					  cop->sym->session);
+			sz = rte_cryptodev_sym_get_existing_header_session_size(
+					cop->sym->session);
+			memset(cop->sym->session, 0, sz);
 			rte_mempool_put(qp->sess_mp, cop->sym->session);
 			cop->sym->session = NULL;
 		}
