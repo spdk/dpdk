@@ -328,6 +328,11 @@ int bnxt_rx_queue_setup_op(struct rte_eth_dev *eth_dev,
 	rxq->nb_rx_desc = nb_desc;
 	rxq->rx_free_thresh = rx_conf->rx_free_thresh;
 
+	if (rx_conf->rx_drop_en != BNXT_DEFAULT_RX_DROP_EN)
+		PMD_DRV_LOG(NOTICE,
+			    "Per-queue config of drop-en is not supported.\n");
+	rxq->drop_en = BNXT_DEFAULT_RX_DROP_EN;
+
 	PMD_DRV_LOG(DEBUG, "RX Buf MTU %d\n", eth_dev->data->mtu);
 
 	rc = bnxt_init_rx_ring_struct(rxq, socket_id);
