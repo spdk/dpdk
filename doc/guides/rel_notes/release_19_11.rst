@@ -2336,3 +2336,25 @@ Tested Platforms
 * vdev_netvsc
 
    * hot-removal of VF driver can fail
+
+19.11.5 Release Notes
+---------------------
+
+19.11.5 Fixes
+~~~~~~~~~~~~~
+
+* vhost/crypto: fix data length check (CVE-2020-14374)
+* vhost/crypto: fix incorrect descriptor deduction (CVE-2020-14378)
+* vhost/crypto: fix incorrect write back source
+* vhost/crypto: fix missed request check for copy mode (CVE-2020-14376 CVE-2020-14377)
+* vhost/crypto: fix pool allocation
+* vhost/crypto: fix possible TOCTOU attack (CVE-2020-14375)
+
+19.11.5 Validation
+~~~~~~~~~~~~~~~~~~
+
+* Intel(R) Testing
+
+   * Basic cryptodev testing
+
+      * vhost_crypto Unit test and Function/Performance test
