@@ -233,8 +233,8 @@ struct bnxt_pf_info {
 };
 
 /* Max wait time for link up is 10s and link down is 500ms */
-#define BNXT_LINK_UP_WAIT_CNT	200
-#define BNXT_LINK_DOWN_WAIT_CNT	10
+#define BNXT_MAX_LINK_WAIT_CNT	200
+#define BNXT_MIN_LINK_WAIT_CNT	10
 #define BNXT_LINK_WAIT_INTERVAL	50
 struct bnxt_link_info {
 	uint32_t		phy_flags;
@@ -681,6 +681,8 @@ void bnxt_schedule_fw_health_check(struct bnxt *bp);
 
 bool is_bnxt_supported(struct rte_eth_dev *dev);
 bool bnxt_stratus_device(struct bnxt *bp);
+int bnxt_link_update_op(struct rte_eth_dev *eth_dev,
+			int wait_to_complete);
 extern const struct rte_flow_ops bnxt_flow_ops;
 #define bnxt_acquire_flow_lock(bp) \
 	pthread_mutex_lock(&(bp)->flow_lock)
