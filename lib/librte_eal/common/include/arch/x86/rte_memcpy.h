@@ -45,7 +45,7 @@ extern "C" {
 static __rte_always_inline void *
 rte_memcpy(void *dst, const void *src, size_t n);
 
-#ifdef RTE_MACHINE_CPUFLAG_AVX512F
+#if defined RTE_MACHINE_CPUFLAG_AVX512F && defined RTE_MEMCPY_AVX512
 
 #define ALIGNMENT_MASK 0x3F
 
