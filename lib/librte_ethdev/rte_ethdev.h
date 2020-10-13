@@ -3612,7 +3612,8 @@ struct rte_eth_rxtx_callback;
  *   The callback function
  * @param user_param
  *   A generic pointer parameter which will be passed to each invocation of the
- *   callback function on this port and queue.
+ *   callback function on this port and queue. Inter-thread synchronization
+ *   of any user data changes is the responsibility of the user.
  *
  * @return
  *   NULL on error.
@@ -3641,7 +3642,8 @@ rte_eth_add_rx_callback(uint16_t port_id, uint16_t queue_id,
  *   The callback function
  * @param user_param
  *   A generic pointer parameter which will be passed to each invocation of the
- *   callback function on this port and queue.
+ *   callback function on this port and queue. Inter-thread synchronization
+ *   of any user data changes is the responsibility of the user.
  *
  * @return
  *   NULL on error.
@@ -3669,7 +3671,8 @@ rte_eth_add_first_rx_callback(uint16_t port_id, uint16_t queue_id,
  *   The callback function
  * @param user_param
  *   A generic pointer parameter which will be passed to each invocation of the
- *   callback function on this port and queue.
+ *   callback function on this port and queue. Inter-thread synchronization
+ *   of any user data changes is the responsibility of the user.
  *
  * @return
  *   NULL on error.
@@ -3694,7 +3697,9 @@ rte_eth_add_tx_callback(uint16_t port_id, uint16_t queue_id,
  *   on that queue.
  *
  * - After a short delay - where the delay is sufficient to allow any
- *   in-flight callbacks to complete.
+ *   in-flight callbacks to complete. Alternately, the RCU mechanism can be
+ *   used to detect when data plane threads have ceased referencing the
+ *   callback memory.
  *
  * @param port_id
  *   The port identifier of the Ethernet device.
@@ -3727,7 +3732,9 @@ int rte_eth_remove_rx_callback(uint16_t port_id, uint16_t queue_id,
  *   on that queue.
  *
  * - After a short delay - where the delay is sufficient to allow any
- *   in-flight callbacks to complete.
+ *   in-flight callbacks to complete. Alternately, the RCU mechanism can be
+ *   used to detect when data plane threads have ceased referencing the
+ *   callback memory.
  *
  * @param port_id
  *   The port identifier of the Ethernet device.
@@ -4388,10 +4395,18 @@ rte_eth_rx_burst(uint16_t port_id, uint16_t queue_id,
 				     rx_pkts, nb_pkts);
 
 #ifdef RTE_ETHDEV_RXTX_CALLBACKS
-	if (unlikely(dev->post_rx_burst_cbs[queue_id] != NULL)) {
-		struct rte_eth_rxtx_callback *cb =
-				dev->post_rx_burst_cbs[queue_id];
+	struct rte_eth_rxtx_callback *cb;
 
+	/* __ATOMIC_RELEASE memory order was used when the
+	 * call back was inserted into the list.
+	 * Since there is a clear dependency between loading
+	 * cb and cb->fn/cb->next, __ATOMIC_ACQUIRE memory order is
+	 * not required.
+	 */
+	cb = __atomic_load_n(&dev->post_rx_burst_cbs[queue_id],
+				__ATOMIC_RELAXED);
+
+	if (unlikely(cb != NULL)) {
 		do {
 			nb_rx = cb->fn.rx(port_id, queue_id, rx_pkts, nb_rx,
 						nb_pkts, cb->param);
@@ -4652,7 +4667,16 @@ rte_eth_tx_burst(uint16_t port_id, uint16_t queue_id,
 #endif
 
 #ifdef RTE_ETHDEV_RXTX_CALLBACKS
-	struct rte_eth_rxtx_callback *cb = dev->pre_tx_burst_cbs[queue_id];
+	struct rte_eth_rxtx_callback *cb;
+
+	/* __ATOMIC_RELEASE memory order was used when the
+	 * call back was inserted into the list.
+	 * Since there is a clear dependency between loading
+	 * cb and cb->fn/cb->next, __ATOMIC_ACQUIRE memory order is
+	 * not required.
+	 */
+	cb = __atomic_load_n(&dev->pre_tx_burst_cbs[queue_id],
+				__ATOMIC_RELAXED);
 
 	if (unlikely(cb != NULL)) {
 		do {
