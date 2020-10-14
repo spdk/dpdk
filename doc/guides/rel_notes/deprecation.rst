@@ -67,12 +67,6 @@ Deprecation Notices
   In 19.11 PMDs will still update the field even when the offload is not
   enabled.
 
-* cryptodev: support for using IV with all sizes is added, J0 still can
-  be used but only when IV length in following structs ``rte_crypto_auth_xform``,
-  ``rte_crypto_aead_xform`` is set to zero. When IV length is greater or equal
-  to one it means it represents IV, when is set to zero it means J0 is used
-  directly, in this case 16 bytes of J0 need to be passed.
-
 * sched: To allow more traffic classes, flexible mapping of pipe queues to
   traffic classes, and subport level configuration of pipes and queues
   changes will be made to macros, data structures and API functions defined
