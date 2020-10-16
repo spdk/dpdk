@@ -12,5 +12,3 @@ sources = files('rte_power.c', 'power_acpi_cpufreq.c',
 		'power_common.c')
 headers = files('rte_power.h','rte_power_empty_poll.h')
 deps += ['timer']
-build = false
-reason = 'not needed by SPDK'
