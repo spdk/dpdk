@@ -536,8 +536,7 @@ mlx5_xstats_reset(struct rte_eth_dev *dev)
 	struct mlx5_xstats_ctrl *xstats_ctrl = &priv->xstats_ctrl;
 	int stats_n;
 	unsigned int i;
-	unsigned int n = xstats_ctrl->mlx5_stats_n;
-	uint64_t counters[n];
+	uint64_t *counters;
 	int ret;
 
 	stats_n = mlx5_ethtool_get_stats_n(dev);
@@ -548,17 +547,26 @@ mlx5_xstats_reset(struct rte_eth_dev *dev)
 	}
 	if (xstats_ctrl->stats_n != stats_n)
 		mlx5_stats_init(dev);
+	counters =  malloc(sizeof(*counters) * xstats_ctrl->mlx5_stats_n);
+	if (!counters) {
+		DRV_LOG(WARNING, "port %u unable to allocate memory for xstats "
+				"counters",
+		     dev->data->port_id);
+		rte_errno = ENOMEM;
+		return -rte_errno;
+	}
 	ret = mlx5_read_dev_counters(dev, counters);
 	if (ret) {
 		DRV_LOG(ERR, "port %u cannot read device counters: %s",
 			dev->data->port_id, strerror(rte_errno));
+		free(counters);
 		return ret;
 	}
-	for (i = 0; i != n; ++i) {
+	for (i = 0; i != xstats_ctrl->mlx5_stats_n; ++i) {
 		xstats_ctrl->base[i] = counters[i];
 		xstats_ctrl->hw_stats[i] = 0;
 	}
-
+	free(counters);
 	return 0;
 }
 
