@@ -669,7 +669,6 @@ struct mlx5_ibv_shared {
 	uint32_t dv_meta_mask; /* flow META metadata supported mask. */
 	uint32_t dv_mark_mask; /* flow MARK metadata supported mask. */
 	uint32_t dv_regc0_mask; /* available bits of metatada reg_c[0]. */
-	uint32_t dv_refcnt; /* DV/DR data reference counter. */
 	void *fdb_domain; /* FDB Direct Rules name space handle. */
 	void *rx_domain; /* RX Direct Rules name space handle. */
 	void *tx_domain; /* TX Direct Rules name space handle. */
@@ -731,7 +730,6 @@ struct mlx5_priv {
 	unsigned int isolated:1; /* Whether isolated mode is enabled. */
 	unsigned int representor:1; /* Device is a port representor. */
 	unsigned int master:1; /* Device is a E-Switch master. */
-	unsigned int dr_shared:1; /* DV/DR data is shared. */
 	unsigned int counter_fallback:1; /* Use counter fallback management. */
 	unsigned int mtr_en:1; /* Whether support meter. */
 	unsigned int mtr_reg_share:1; /* Whether support meter REG_C share. */
