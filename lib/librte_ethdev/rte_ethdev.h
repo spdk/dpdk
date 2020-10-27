@@ -1160,16 +1160,19 @@ struct rte_eth_conf {
 #define DEV_TX_OFFLOAD_IP_TNL_TSO       0x00080000
 /** Device supports outer UDP checksum */
 #define DEV_TX_OFFLOAD_OUTER_UDP_CKSUM  0x00100000
-
-#define RTE_ETH_DEV_CAPA_RUNTIME_RX_QUEUE_SETUP 0x00000001
-/**< Device supports Rx queue setup after device started*/
-#define RTE_ETH_DEV_CAPA_RUNTIME_TX_QUEUE_SETUP 0x00000002
-/**< Device supports Tx queue setup after device started*/
-
 /*
  * If new Tx offload capabilities are defined, they also must be
  * mentioned in rte_tx_offload_names in rte_ethdev.c file.
  */
+
+/**@{@name Device capabilities
+ * Non-offload capabilities reported in rte_eth_dev_info.dev_capa.
+ */
+/** Device supports Rx queue setup after device started. */
+#define RTE_ETH_DEV_CAPA_RUNTIME_RX_QUEUE_SETUP 0x00000001
+/** Device supports Tx queue setup after device started. */
+#define RTE_ETH_DEV_CAPA_RUNTIME_TX_QUEUE_SETUP 0x00000002
+/**@}*/
 
 /*
  * Fallback default preferred Rx/Tx port parameters.
