@@ -5,5 +5,3 @@ sources = files('rte_rcu_qsbr.c')
 headers = files('rte_rcu_qsbr.h')
 
 deps += ['ring']
-build = false
-reason = 'not needed by SPDK'
