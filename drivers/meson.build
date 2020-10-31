@@ -160,8 +160,10 @@ foreach class:dpdk_driver_classes
 			lk_deps = [version_map, def_file]
 			if is_windows
 				if is_ms_linker
-					lk_args = ['-Wl,/def:' + def_file.full_path(),
-						'-Wl,/implib:drivers\\' + implib]
+					lk_args = ['-Wl,/def:' + def_file.full_path()]
+					if meson.version().version_compare('<0.54.0')
+						lk_args += ['-Wl,/implib:drivers\\' + implib]
+					endif
 				else
 					lk_args = []
 				endif
