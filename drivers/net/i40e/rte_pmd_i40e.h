@@ -14,6 +14,10 @@
  *
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <rte_compat.h>
 #include <rte_ethdev.h>
 #include <rte_ether.h>
@@ -1080,5 +1084,9 @@ rte_pmd_i40e_inset_field_clear(uint64_t *inset, uint8_t field_idx)
 __rte_experimental
 int
 rte_pmd_i40e_set_switch_dev(uint16_t port_id, struct rte_eth_dev *switch_dev);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _PMD_I40E_H_ */
