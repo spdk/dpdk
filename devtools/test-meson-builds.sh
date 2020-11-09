@@ -38,20 +38,21 @@ else
 fi
 
 default_path=$PATH
-default_pkgpath=$PKG_CONFIG_PATH
 default_cppflags=$CPPFLAGS
 default_cflags=$CFLAGS
 default_ldflags=$LDFLAGS
+default_meson_options=$DPDK_MESON_OPTIONS
 
 load_env () # <target compiler>
 {
 	targetcc=$1
+	# reset variables before target-specific config
 	export PATH=$default_path
-	export PKG_CONFIG_PATH=$default_pkgpath
+	unset PKG_CONFIG_PATH # global default makes no sense
 	export CPPFLAGS=$default_cppflags
 	export CFLAGS=$default_cflags
 	export LDFLAGS=$default_ldflags
-	unset DPDK_MESON_OPTIONS
+	export DPDK_MESON_OPTIONS=$default_meson_options
 	command -v $targetcc >/dev/null 2>&1 || return 1
 	DPDK_TARGET=$($targetcc -v 2>&1 | sed -n 's,^Target: ,,p')
 	. $srcdir/devtools/load-devel-config
