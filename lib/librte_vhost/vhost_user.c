@@ -2088,7 +2088,7 @@ vhost_user_set_log_base(struct virtio_net **pdev, struct VhostUserMsg *msg,
 		RTE_LOG(ERR, VHOST_CONFIG,
 			"invalid log base msg size: %"PRId32" != %d\n",
 			msg->size, (int)sizeof(VhostUserLog));
-		return RTE_VHOST_MSG_RESULT_ERR;
+		goto close_msg_fds;
 	}
 
 	size = msg->payload.log.mmap_size;
@@ -2099,7 +2099,7 @@ vhost_user_set_log_base(struct virtio_net **pdev, struct VhostUserMsg *msg,
 		RTE_LOG(ERR, VHOST_CONFIG,
 			"log offset %#"PRIx64" and log size %#"PRIx64" overflow\n",
 			off, size);
-		return RTE_VHOST_MSG_RESULT_ERR;
+		goto close_msg_fds;
 	}
 
 	RTE_LOG(INFO, VHOST_CONFIG,
@@ -2136,6 +2136,10 @@ vhost_user_set_log_base(struct virtio_net **pdev, struct VhostUserMsg *msg,
 	msg->fd_num = 0;
 
 	return RTE_VHOST_MSG_RESULT_REPLY;
+
+close_msg_fds:
+	close_msg_fds(msg);
+	return RTE_VHOST_MSG_RESULT_ERR;
 }
 
 static int vhost_user_set_log_fd(struct virtio_net **pdev __rte_unused,
