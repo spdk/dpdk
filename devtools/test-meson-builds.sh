@@ -135,14 +135,12 @@ done
 
 # Test installation of the x86-default target, to be used for checking
 # the sample apps build using the pkg-config file for cflags and libs
+load_env cc
 build_path=$(readlink -f $builds_dir/build-x86-default)
 export DESTDIR=$build_path/install-root
 $ninja_cmd -C $build_path install
-
-load_env cc
 pc_file=$(find $DESTDIR -name libdpdk.pc)
 export PKG_CONFIG_PATH=$(dirname $pc_file):$PKG_CONFIG_PATH
-
 # if pkg-config defines the necessary flags, test building some examples
 if pkg-config --define-prefix libdpdk >/dev/null 2>&1; then
 	export PKGCONF="pkg-config --define-prefix"
