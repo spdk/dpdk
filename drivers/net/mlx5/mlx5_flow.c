@@ -1121,6 +1121,7 @@ mlx5_flow_validate_action_rss(const struct rte_flow_action *action,
 	struct mlx5_priv *priv = dev->data->dev_private;
 	const struct rte_flow_action_rss *rss = action->conf;
 	int tunnel = !!(item_flags & MLX5_FLOW_LAYER_TUNNEL);
+	enum mlx5_rxq_type rxq_type = MLX5_RXQ_TYPE_UNDEFINED;
 	unsigned int i;
 
 	if (action_flags & MLX5_FLOW_FATE_ACTIONS)
@@ -1179,6 +1180,8 @@ mlx5_flow_validate_action_rss(const struct rte_flow_action *action,
 					  RTE_FLOW_ERROR_TYPE_ACTION_CONF,
 					  NULL, "No queues configured");
 	for (i = 0; i != rss->queue_num; ++i) {
+		struct mlx5_rxq_ctrl *rxq_ctrl;
+
 		if (rss->queue[i] >= priv->rxqs_n)
 			return rte_flow_error_set
 				(error, EINVAL,
@@ -1188,6 +1191,15 @@ mlx5_flow_validate_action_rss(const struct rte_flow_action *action,
 			return rte_flow_error_set
 				(error, EINVAL, RTE_FLOW_ERROR_TYPE_ACTION_CONF,
 				 &rss->queue[i], "queue is not configured");
+		rxq_ctrl = container_of((*priv->rxqs)[rss->queue[i]],
+					struct mlx5_rxq_ctrl, rxq);
+		if (i == 0)
+			rxq_type = rxq_ctrl->type;
+		if (rxq_type != rxq_ctrl->type)
+			return rte_flow_error_set
+				(error, ENOTSUP, RTE_FLOW_ERROR_TYPE_ACTION_CONF,
+				 &rss->queue[i],
+				 "combining hairpin and regular RSS queues is not supported");
 	}
 	if (attr->egress)
 		return rte_flow_error_set(error, ENOTSUP,
