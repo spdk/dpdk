@@ -183,6 +183,7 @@ warning_flags = [
 	# additional warnings in alphabetical order
 	'-Wcast-qual',
 	'-Wdeprecated',
+	'-Wformat',
 	'-Wformat-nonliteral',
 	'-Wformat-security',
 	'-Wmissing-declarations',
