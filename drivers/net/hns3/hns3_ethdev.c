@@ -2501,6 +2501,15 @@ hns3_dev_infos_get(struct rte_eth_dev *eth_dev, struct rte_eth_dev_info *info)
 		.nb_align = HNS3_ALIGN_RING_DESC,
 	};
 
+	info->default_rxconf = (struct rte_eth_rxconf) {
+		/*
+		 * If there are no available Rx buffer descriptors, incoming
+		 * packets are always dropped by hardware based on hns3 network
+		 * engine.
+		 */
+		.rx_drop_en = 1,
+	};
+
 	info->vmdq_queue_num = 0;
 
 	info->reta_size = HNS3_RSS_IND_TBL_SIZE;
