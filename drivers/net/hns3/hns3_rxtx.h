@@ -250,6 +250,12 @@ struct hns3_rx_queue {
 	uint16_t rx_buf_len;
 	uint16_t rx_free_thresh;
 
+	/*
+	 * port based vlan configuration state.
+	 * value range: HNS3_PORT_BASE_VLAN_DISABLE / HNS3_PORT_BASE_VLAN_ENABLE
+	 */
+	uint16_t pvid_state;
+
 	bool rx_deferred_start; /* don't start this queue in dev start */
 	bool configured;        /* indicate if rx queue has been configured */
 
@@ -275,6 +281,12 @@ struct hns3_tx_queue {
 	uint16_t next_to_clean;
 	uint16_t next_to_use;
 	uint16_t tx_bd_ready;
+
+	/*
+	 * port based vlan configuration state.
+	 * value range: HNS3_PORT_BASE_VLAN_DISABLE / HNS3_PORT_BASE_VLAN_ENABLE
+	 */
+	uint16_t pvid_state;
 
 	bool tx_deferred_start; /* don't start this queue in dev start */
 	bool configured;        /* indicate if tx queue has been configured */
@@ -336,5 +348,6 @@ void hns3_set_queue_intr_rl(struct hns3_hw *hw, uint16_t queue_id,
 			    uint16_t rl_value);
 int hns3_set_fake_rx_or_tx_queues(struct rte_eth_dev *dev, uint16_t nb_rx_q,
 				  uint16_t nb_tx_q);
+void hns3_update_all_queues_pvid_state(struct hns3_hw *hw);
 
 #endif /* _HNS3_RXTX_H_ */
