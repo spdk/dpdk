@@ -1046,7 +1046,7 @@ mlx5_free_shared_dr(struct mlx5_priv *priv)
 {
 	struct mlx5_ibv_shared *sh = priv->sh;
 
-	assert(sh && sh->dv_refcnt);
+	assert(sh && sh->refcnt);
 	if (sh->refcnt > 1)
 		return;
 #ifdef HAVE_MLX5DV_DR
