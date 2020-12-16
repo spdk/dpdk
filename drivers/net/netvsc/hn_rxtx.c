@@ -42,7 +42,7 @@
 #define HN_TXD_CACHE_SIZE	32 /* per cpu tx_descriptor pool cache */
 #define HN_TXCOPY_THRESHOLD	512
 
-#define HN_RXCOPY_THRESHOLD	256
+#define HN_RXCOPY_THRESHOLD	UINT_MAX
 #define HN_RXQ_EVENT_DEFAULT	2048
 
 struct hn_rxinfo {
