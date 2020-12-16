@@ -82,8 +82,6 @@ static int hn_vf_attach(struct hn_data *hv, uint16_t port_id)
 
 	PMD_DRV_LOG(DEBUG, "Attach VF device %u", port_id);
 	hv->vf_port = port_id;
-	rte_smp_wmb();
-
 	return 0;
 }
 
@@ -98,11 +96,9 @@ int hn_vf_add(struct rte_eth_dev *dev, struct hn_data *hv)
 		return port;
 	}
 
-	rte_spinlock_lock(&hv->vf_lock);
 	err = hn_vf_attach(hv, port);
 	if (err == 0)
 		hn_nvs_set_datapath(hv, NVS_DATAPATH_VF);
-	rte_spinlock_unlock(&hv->vf_lock);
 
 	return err;
 }
@@ -110,8 +106,6 @@ int hn_vf_add(struct rte_eth_dev *dev, struct hn_data *hv)
 /* Remove new VF device */
 static void hn_vf_remove(struct hn_data *hv)
 {
-
-	rte_spinlock_lock(&hv->vf_lock);
 
 	if (!hn_vf_attached(hv)) {
 		PMD_DRV_LOG(ERR, "VF path not active");
@@ -124,9 +118,7 @@ static void hn_vf_remove(struct hn_data *hv)
 
 		/* Stop transmission over VF */
 		hv->vf_port = HN_INVALID_PORT;
-		rte_smp_wmb();
 	}
-	rte_spinlock_unlock(&hv->vf_lock);
 }
 
 /* Handle VF association message from host */
@@ -148,15 +140,16 @@ hn_nvs_handle_vfassoc(struct rte_eth_dev *dev,
 		    vf_assoc->allocated ? "add to" : "remove from",
 		    dev->data->port_id);
 
+	rte_rwlock_write_lock(&hv->vf_lock);
 	hv->vf_present = vf_assoc->allocated;
 
-	if (dev->state != RTE_ETH_DEV_ATTACHED)
-		return;
-
-	if (vf_assoc->allocated)
-		hn_vf_add(dev, hv);
-	else
-		hn_vf_remove(hv);
+	if (dev->state == RTE_ETH_DEV_ATTACHED) {
+		if (vf_assoc->allocated)
+			hn_vf_add(dev, hv);
+		else
+			hn_vf_remove(hv);
+	}
+	rte_rwlock_write_unlock(&hv->vf_lock);
 }
 
 static void
@@ -215,11 +208,11 @@ int hn_vf_info_get(struct hn_data *hv, struct rte_eth_dev_info *info)
 	struct rte_eth_dev *vf_dev;
 	int ret = 0;
 
-	rte_spinlock_lock(&hv->vf_lock);
+	rte_rwlock_read_lock(&hv->vf_lock);
 	vf_dev = hn_get_vf_dev(hv);
 	if (vf_dev)
 		ret = hn_vf_info_merge(vf_dev, info);
-	rte_spinlock_unlock(&hv->vf_lock);
+	rte_rwlock_read_unlock(&hv->vf_lock);
 	return ret;
 }
 
@@ -237,7 +230,7 @@ int hn_vf_configure(struct rte_eth_dev *dev,
 	/* link state interrupt does not matter here. */
 	vf_conf.intr_conf.lsc = 0;
 
-	rte_spinlock_lock(&hv->vf_lock);
+	rte_rwlock_read_lock(&hv->vf_lock);
 	if (hv->vf_port != HN_INVALID_PORT) {
 		ret = rte_eth_dev_configure(hv->vf_port,
 					    dev->data->nb_rx_queues,
@@ -247,7 +240,7 @@ int hn_vf_configure(struct rte_eth_dev *dev,
 			PMD_DRV_LOG(ERR,
 				    "VF configuration failed: %d", ret);
 	}
-	rte_spinlock_unlock(&hv->vf_lock);
+	rte_rwlock_read_unlock(&hv->vf_lock);
 	return ret;
 }
 
@@ -257,11 +250,11 @@ const uint32_t *hn_vf_supported_ptypes(struct rte_eth_dev *dev)
 	struct rte_eth_dev *vf_dev;
 	const uint32_t *ptypes = NULL;
 
-	rte_spinlock_lock(&hv->vf_lock);
+	rte_rwlock_read_lock(&hv->vf_lock);
 	vf_dev = hn_get_vf_dev(hv);
 	if (vf_dev && vf_dev->dev_ops->dev_supported_ptypes_get)
 		ptypes = (*vf_dev->dev_ops->dev_supported_ptypes_get)(vf_dev);
-	rte_spinlock_unlock(&hv->vf_lock);
+	rte_rwlock_read_unlock(&hv->vf_lock);
 
 	return ptypes;
 }
@@ -272,11 +265,11 @@ int hn_vf_start(struct rte_eth_dev *dev)
 	struct rte_eth_dev *vf_dev;
 	int ret = 0;
 
-	rte_spinlock_lock(&hv->vf_lock);
+	rte_rwlock_read_lock(&hv->vf_lock);
 	vf_dev = hn_get_vf_dev(hv);
 	if (vf_dev)
 		ret = rte_eth_dev_start(vf_dev->data->port_id);
-	rte_spinlock_unlock(&hv->vf_lock);
+	rte_rwlock_read_unlock(&hv->vf_lock);
 	return ret;
 }
 
@@ -285,11 +278,11 @@ void hn_vf_stop(struct rte_eth_dev *dev)
 	struct hn_data *hv = dev->data->dev_private;
 	struct rte_eth_dev *vf_dev;
 
-	rte_spinlock_lock(&hv->vf_lock);
+	rte_rwlock_read_lock(&hv->vf_lock);
 	vf_dev = hn_get_vf_dev(hv);
 	if (vf_dev)
 		rte_eth_dev_stop(vf_dev->data->port_id);
-	rte_spinlock_unlock(&hv->vf_lock);
+	rte_rwlock_read_unlock(&hv->vf_lock);
 }
 
 /* If VF is present, then cascade configuration down */
@@ -297,11 +290,11 @@ void hn_vf_stop(struct rte_eth_dev *dev)
 	{							\
 		struct hn_data *hv = (dev)->data->dev_private;	\
 		struct rte_eth_dev *vf_dev;			\
-		rte_spinlock_lock(&hv->vf_lock);		\
+		rte_rwlock_read_lock(&hv->vf_lock);		\
 		vf_dev = hn_get_vf_dev(hv);			\
 		if (vf_dev)					\
 			func(vf_dev->data->port_id);		\
-		rte_spinlock_unlock(&hv->vf_lock);		\
+		rte_rwlock_read_unlock(&hv->vf_lock);		\
 	}
 
 /* If VF is present, then cascade configuration down */
@@ -310,11 +303,11 @@ void hn_vf_stop(struct rte_eth_dev *dev)
 		struct hn_data *hv = (dev)->data->dev_private;	\
 		struct rte_eth_dev *vf_dev;			\
 		int ret = 0;					\
-		rte_spinlock_lock(&hv->vf_lock);		\
+		rte_rwlock_read_lock(&hv->vf_lock);		\
 		vf_dev = hn_get_vf_dev(hv);			\
 		if (vf_dev)					\
 			ret = func(vf_dev->data->port_id);	\
-		rte_spinlock_unlock(&hv->vf_lock);		\
+		rte_rwlock_read_unlock(&hv->vf_lock);		\
 		return ret;					\
 	}
 
@@ -328,13 +321,13 @@ void hn_vf_close(struct rte_eth_dev *dev)
 	struct hn_data *hv = dev->data->dev_private;
 	uint16_t vf_port;
 
-	rte_spinlock_lock(&hv->vf_lock);
+	rte_rwlock_read_lock(&hv->vf_lock);
 	vf_port = hv->vf_port;
 	if (vf_port != HN_INVALID_PORT)
 		rte_eth_dev_close(vf_port);
 
 	hv->vf_port = HN_INVALID_PORT;
-	rte_spinlock_unlock(&hv->vf_lock);
+	rte_rwlock_read_unlock(&hv->vf_lock);
 }
 
 int hn_vf_stats_reset(struct rte_eth_dev *dev)
@@ -370,12 +363,12 @@ int hn_vf_mc_addr_list(struct rte_eth_dev *dev,
 	struct rte_eth_dev *vf_dev;
 	int ret = 0;
 
-	rte_spinlock_lock(&hv->vf_lock);
+	rte_rwlock_read_lock(&hv->vf_lock);
 	vf_dev = hn_get_vf_dev(hv);
 	if (vf_dev)
 		ret = rte_eth_dev_set_mc_addr_list(vf_dev->data->port_id,
 						   mc_addr_set, nb_mc_addr);
-	rte_spinlock_unlock(&hv->vf_lock);
+	rte_rwlock_read_unlock(&hv->vf_lock);
 	return ret;
 }
 
@@ -388,13 +381,13 @@ int hn_vf_tx_queue_setup(struct rte_eth_dev *dev,
 	struct rte_eth_dev *vf_dev;
 	int ret = 0;
 
-	rte_spinlock_lock(&hv->vf_lock);
+	rte_rwlock_read_lock(&hv->vf_lock);
 	vf_dev = hn_get_vf_dev(hv);
 	if (vf_dev)
 		ret = rte_eth_tx_queue_setup(vf_dev->data->port_id,
 					     queue_idx, nb_desc,
 					     socket_id, tx_conf);
-	rte_spinlock_unlock(&hv->vf_lock);
+	rte_rwlock_read_unlock(&hv->vf_lock);
 	return ret;
 }
 
@@ -402,7 +395,7 @@ void hn_vf_tx_queue_release(struct hn_data *hv, uint16_t queue_id)
 {
 	struct rte_eth_dev *vf_dev;
 
-	rte_spinlock_lock(&hv->vf_lock);
+	rte_rwlock_read_lock(&hv->vf_lock);
 	vf_dev = hn_get_vf_dev(hv);
 	if (vf_dev && vf_dev->dev_ops->tx_queue_release) {
 		void *subq = vf_dev->data->tx_queues[queue_id];
@@ -410,7 +403,7 @@ void hn_vf_tx_queue_release(struct hn_data *hv, uint16_t queue_id)
 		(*vf_dev->dev_ops->tx_queue_release)(subq);
 	}
 
-	rte_spinlock_unlock(&hv->vf_lock);
+	rte_rwlock_read_unlock(&hv->vf_lock);
 }
 
 int hn_vf_rx_queue_setup(struct rte_eth_dev *dev,
@@ -423,13 +416,13 @@ int hn_vf_rx_queue_setup(struct rte_eth_dev *dev,
 	struct rte_eth_dev *vf_dev;
 	int ret = 0;
 
-	rte_spinlock_lock(&hv->vf_lock);
+	rte_rwlock_read_lock(&hv->vf_lock);
 	vf_dev = hn_get_vf_dev(hv);
 	if (vf_dev)
 		ret = rte_eth_rx_queue_setup(vf_dev->data->port_id,
 					     queue_idx, nb_desc,
 					     socket_id, rx_conf, mp);
-	rte_spinlock_unlock(&hv->vf_lock);
+	rte_rwlock_read_unlock(&hv->vf_lock);
 	return ret;
 }
 
@@ -437,14 +430,14 @@ void hn_vf_rx_queue_release(struct hn_data *hv, uint16_t queue_id)
 {
 	struct rte_eth_dev *vf_dev;
 
-	rte_spinlock_lock(&hv->vf_lock);
+	rte_rwlock_read_lock(&hv->vf_lock);
 	vf_dev = hn_get_vf_dev(hv);
 	if (vf_dev && vf_dev->dev_ops->rx_queue_release) {
 		void *subq = vf_dev->data->rx_queues[queue_id];
 
 		(*vf_dev->dev_ops->rx_queue_release)(subq);
 	}
-	rte_spinlock_unlock(&hv->vf_lock);
+	rte_rwlock_read_unlock(&hv->vf_lock);
 }
 
 int hn_vf_stats_get(struct rte_eth_dev *dev,
@@ -454,11 +447,11 @@ int hn_vf_stats_get(struct rte_eth_dev *dev,
 	struct rte_eth_dev *vf_dev;
 	int ret = 0;
 
-	rte_spinlock_lock(&hv->vf_lock);
+	rte_rwlock_read_lock(&hv->vf_lock);
 	vf_dev = hn_get_vf_dev(hv);
 	if (vf_dev)
 		ret = rte_eth_stats_get(vf_dev->data->port_id, stats);
-	rte_spinlock_unlock(&hv->vf_lock);
+	rte_rwlock_read_unlock(&hv->vf_lock);
 	return ret;
 }
 
@@ -470,12 +463,12 @@ int hn_vf_xstats_get_names(struct rte_eth_dev *dev,
 	struct rte_eth_dev *vf_dev;
 	int i, count = 0;
 
-	rte_spinlock_lock(&hv->vf_lock);
+	rte_rwlock_read_lock(&hv->vf_lock);
 	vf_dev = hn_get_vf_dev(hv);
 	if (vf_dev)
 		count = rte_eth_xstats_get_names(vf_dev->data->port_id,
 						 names, n);
-	rte_spinlock_unlock(&hv->vf_lock);
+	rte_rwlock_read_unlock(&hv->vf_lock);
 
 	/* add vf_ prefix to xstat names */
 	if (names) {
@@ -499,12 +492,12 @@ int hn_vf_xstats_get(struct rte_eth_dev *dev,
 	struct rte_eth_dev *vf_dev;
 	int i, count = 0;
 
-	rte_spinlock_lock(&hv->vf_lock);
+	rte_rwlock_read_lock(&hv->vf_lock);
 	vf_dev = hn_get_vf_dev(hv);
 	if (vf_dev)
 		count = rte_eth_xstats_get(vf_dev->data->port_id,
 					   xstats + offset, n - offset);
-	rte_spinlock_unlock(&hv->vf_lock);
+	rte_rwlock_read_unlock(&hv->vf_lock);
 
 	/* Offset id's for VF stats */
 	if (count > 0) {
@@ -521,13 +514,13 @@ int hn_vf_xstats_reset(struct rte_eth_dev *dev)
 	struct rte_eth_dev *vf_dev;
 	int ret;
 
-	rte_spinlock_lock(&hv->vf_lock);
+	rte_rwlock_read_lock(&hv->vf_lock);
 	vf_dev = hn_get_vf_dev(hv);
 	if (vf_dev)
 		ret = rte_eth_xstats_reset(vf_dev->data->port_id);
 	else
 		ret = -EINVAL;
-	rte_spinlock_unlock(&hv->vf_lock);
+	rte_rwlock_read_unlock(&hv->vf_lock);
 
 	return ret;
 }
@@ -539,11 +532,11 @@ int hn_vf_rss_hash_update(struct rte_eth_dev *dev,
 	struct rte_eth_dev *vf_dev;
 	int ret = 0;
 
-	rte_spinlock_lock(&hv->vf_lock);
+	rte_rwlock_read_lock(&hv->vf_lock);
 	vf_dev = hn_get_vf_dev(hv);
 	if (vf_dev && vf_dev->dev_ops->rss_hash_update)
 		ret = vf_dev->dev_ops->rss_hash_update(vf_dev, rss_conf);
-	rte_spinlock_unlock(&hv->vf_lock);
+	rte_rwlock_read_unlock(&hv->vf_lock);
 
 	return ret;
 }
@@ -556,12 +549,12 @@ int hn_vf_reta_hash_update(struct rte_eth_dev *dev,
 	struct rte_eth_dev *vf_dev;
 	int ret = 0;
 
-	rte_spinlock_lock(&hv->vf_lock);
+	rte_rwlock_read_lock(&hv->vf_lock);
 	vf_dev = hn_get_vf_dev(hv);
 	if (vf_dev && vf_dev->dev_ops->reta_update)
 		ret = vf_dev->dev_ops->reta_update(vf_dev,
 						   reta_conf, reta_size);
-	rte_spinlock_unlock(&hv->vf_lock);
+	rte_rwlock_read_unlock(&hv->vf_lock);
 
 	return ret;
 }

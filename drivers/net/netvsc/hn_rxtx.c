@@ -1397,13 +1397,17 @@ hn_xmit_pkts(void *ptxq, struct rte_mbuf **tx_pkts, uint16_t nb_pkts)
 		return 0;
 
 	/* Transmit over VF if present and up */
+	rte_rwlock_read_lock(&hv->vf_lock);
 	vf_dev = hn_get_vf_dev(hv);
 
 	if (vf_dev && vf_dev->data->dev_started) {
 		void *sub_q = vf_dev->data->tx_queues[queue_id];
 
-		return (*vf_dev->tx_pkt_burst)(sub_q, tx_pkts, nb_pkts);
+		nb_tx = (*vf_dev->tx_pkt_burst)(sub_q, tx_pkts, nb_pkts);
+		rte_rwlock_read_unlock(&hv->vf_lock);
+		return nb_tx;
 	}
+	rte_rwlock_read_unlock(&hv->vf_lock);
 
 	avail = rte_mempool_avail_count(txq->txdesc_pool);
 	if (nb_pkts > avail || avail <= txq->free_thresh)
@@ -1517,10 +1521,12 @@ hn_recv_pkts(void *prxq, struct rte_mbuf **rx_pkts, uint16_t nb_pkts)
 					   (void **)rx_pkts, nb_pkts, NULL);
 
 	/* If VF is available, check that as well */
+	rte_rwlock_read_lock(&hv->vf_lock);
 	if (vf_dev && vf_dev->data->dev_started)
 		nb_rcv += hn_recv_vf(vf_dev->data->port_id, rxq,
 				     rx_pkts + nb_rcv, nb_pkts - nb_rcv);
 
+	rte_rwlock_read_unlock(&hv->vf_lock);
 	return nb_rcv;
 }
 
