@@ -37,6 +37,7 @@ static int iavf_dev_configure(struct rte_eth_dev *dev);
 static int iavf_dev_start(struct rte_eth_dev *dev);
 static void iavf_dev_stop(struct rte_eth_dev *dev);
 static void iavf_dev_close(struct rte_eth_dev *dev);
+static int iavf_dev_reset(struct rte_eth_dev *dev);
 static int iavf_dev_info_get(struct rte_eth_dev *dev,
 			     struct rte_eth_dev_info *dev_info);
 static const uint32_t *iavf_dev_supported_ptypes_get(struct rte_eth_dev *dev);
@@ -99,6 +100,7 @@ static const struct eth_dev_ops iavf_eth_dev_ops = {
 	.dev_start                  = iavf_dev_start,
 	.dev_stop                   = iavf_dev_stop,
 	.dev_close                  = iavf_dev_close,
+	.dev_reset                  = iavf_dev_reset,
 	.dev_infos_get              = iavf_dev_info_get,
 	.dev_supported_ptypes_get   = iavf_dev_supported_ptypes_get,
 	.link_update                = iavf_dev_link_update,
@@ -1438,7 +1440,6 @@ static int
 iavf_dev_uninit(struct rte_eth_dev *dev)
 {
 	struct iavf_info *vf = IAVF_DEV_PRIVATE_TO_VF(dev->data->dev_private);
-	struct iavf_hw *hw = IAVF_DEV_PRIVATE_TO_HW(dev->data->dev_private);
 
 	if (rte_eal_process_type() != RTE_PROC_PRIMARY)
 		return -EPERM;
@@ -1446,8 +1447,7 @@ iavf_dev_uninit(struct rte_eth_dev *dev)
 	dev->dev_ops = NULL;
 	dev->rx_pkt_burst = NULL;
 	dev->tx_pkt_burst = NULL;
-	if (hw->adapter_stopped == 0)
-		iavf_dev_close(dev);
+	iavf_dev_close(dev);
 
 	rte_free(vf->vf_res);
 	vf->vsi_res = NULL;
@@ -1468,6 +1468,21 @@ iavf_dev_uninit(struct rte_eth_dev *dev)
 	vf->vf_reset = false;
 
 	return 0;
+}
+
+/*
+ * Reset VF device only to re-initialize resources in PMD layer
+ */
+static int
+iavf_dev_reset(struct rte_eth_dev *dev)
+{
+	int ret;
+
+	ret = iavf_dev_uninit(dev);
+	if (ret)
+		return ret;
+
+	return iavf_dev_init(dev);
 }
 
 static int eth_iavf_pci_probe(struct rte_pci_driver *pci_drv __rte_unused,
