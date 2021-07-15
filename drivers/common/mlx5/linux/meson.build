@@ -205,7 +205,8 @@ has_sym_args = [
 ]
 config = configuration_data()
 foreach arg:has_sym_args
-    config.set(arg[0], cc.has_header_symbol(arg[1], arg[2], dependencies: libs))
+    file_prefix = '#pragma clang diagnostic ignored "-Wunused-value"'
+    config.set(arg[0], cc.has_header_symbol(arg[1], arg[2], prefix : file_prefix, dependencies: libs))
 endforeach
 foreach arg:has_member_args
     file_prefix = '#include <' + arg[1] + '>'
