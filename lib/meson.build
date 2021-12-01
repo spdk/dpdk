@@ -83,10 +83,6 @@ disabled_libs = []
 opt_disabled_libs = run_command(list_dir_globs, get_option('disable_libs'),
         check: true).stdout().split()
 foreach l:opt_disabled_libs
-    if not optional_libs.contains(l)
-        warning('Cannot disable mandatory library "@0@"'.format(l))
-        continue
-    endif
     disabled_libs += l
 endforeach
 
