@@ -76,8 +76,8 @@ subdir('lib')
 subdir('drivers')
 
 # build binaries and installable tools
-subdir('usertools')
-subdir('app')
+#subdir('usertools')
+#subdir('app')
 
 # build docs
 subdir('doc')
