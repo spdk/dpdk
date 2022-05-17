@@ -1450,7 +1450,7 @@ vfio_type1_dma_mem_map(int vfio_container_fd, uint64_t vaddr, uint64_t iova,
 					"%i (%s)\n", errno, strerror(errno));
 			return -1;
 		} else if (dma_unmap.size != len) {
-			RTE_LOG(ERR, EAL, "Unexpected size %"PRIu64
+			RTE_LOG(INFO, EAL, "Unexpected size %"PRIu64
 				" of DMA remapping cleared instead of %"PRIu64"\n",
 				(uint64_t)dma_unmap.size, len);
 			rte_errno = EIO;
