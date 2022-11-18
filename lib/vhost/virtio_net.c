@@ -1882,7 +1882,6 @@ virtio_dev_rx_async_submit_packed(struct virtio_net *dev, struct vhost_virtqueue
 		int16_t dma_id, uint16_t vchan_id)
 {
 	uint32_t pkt_idx = 0;
-	uint32_t remained = count;
 	uint16_t n_xfer;
 	uint16_t num_buffers;
 	uint16_t num_descs;
@@ -1908,7 +1907,6 @@ virtio_dev_rx_async_submit_packed(struct virtio_net *dev, struct vhost_virtqueue
 		pkts_info[slot_idx].mbuf = pkts[pkt_idx];
 
 		pkt_idx++;
-		remained--;
 		vq_inc_last_avail_packed(vq, num_descs);
 	} while (pkt_idx < count);
 
