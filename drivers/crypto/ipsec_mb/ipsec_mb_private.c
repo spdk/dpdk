@@ -170,13 +170,8 @@ ipsec_mb_create(struct rte_vdev_device *vdev,
 
 	if (rte_eal_process_type() == RTE_PROC_PRIMARY) {
 		retval = ipsec_mb_mp_request_register();
-		if (retval && (rte_errno == EEXIST))
-			/* Safe to proceed, return 0 */
-			return 0;
-
-		if (retval)
-			IPSEC_MB_LOG(ERR,
-				"IPSec Multi-buffer register MP request failed.\n");
+		if (retval != 0 && rte_errno == ENOTSUP)
+			retval = 0;
 	}
 	return retval;
 }
