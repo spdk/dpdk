@@ -447,13 +447,12 @@ pci_cleanup(void)
 		struct rte_pci_driver *drv = dev->driver;
 		int ret = 0;
 
-		if (drv == NULL || drv->remove == NULL)
-			continue;
-
-		ret = drv->remove(dev);
-		if (ret < 0) {
-			rte_errno = errno;
-			error = -1;
+		if (drv != NULL && drv->remove != NULL) {
+			ret = drv->remove(dev);
+			if (ret < 0) {
+				rte_errno = errno;
+				error = -1;
+			}
 		}
 		dev->driver = NULL;
 		dev->device.driver = NULL;
