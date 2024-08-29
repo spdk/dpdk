@@ -21,14 +21,22 @@
 #include <rte_bus_pci.h>
 #include <rte_common.h>
 #include <rte_malloc.h>
+#include <rte_eal.h>
+#include <rte_errno.h>
 
 #include "eal_filesystem.h"
 #include "pci_init.h"
 #include "private.h"
 
 void *pci_map_addr = NULL;
+static int pci_uio_dev_count;
 
 #define OFF_MAX              ((uint64_t)(off_t)-1)
+#define SEND_FD_MP_KEY       "pci_uio_send_fd"
+
+struct pci_uio_send_fd_param {
+	struct rte_pci_addr addr;
+};
 
 int
 pci_uio_read_config(const struct rte_intr_handle *intr_handle,
@@ -211,6 +219,93 @@ pci_uio_free_resource(struct rte_pci_device *dev,
 		rte_intr_fd_set(dev->intr_handle, -1);
 		rte_intr_type_set(dev->intr_handle, RTE_INTR_HANDLE_UNKNOWN);
 	}
+
+	if (rte_eal_process_type() == RTE_PROC_PRIMARY) {
+		assert(pci_uio_dev_count > 0);
+		pci_uio_dev_count--;
+		if (pci_uio_dev_count == 0)
+			rte_mp_action_unregister(SEND_FD_MP_KEY);
+	}
+}
+
+static int
+pci_uio_send_fd(const struct rte_mp_msg *request, const void *peer)
+{
+	struct rte_pci_device *dev;
+	const struct pci_uio_send_fd_param *param =
+		(const struct pci_uio_send_fd_param *)request->param;
+	struct rte_mp_msg reply = {};
+	int fd;
+
+	strlcpy(reply.name, request->name, sizeof(reply.name));
+	TAILQ_FOREACH(dev, &rte_pci_bus.device_list, next) {
+		if (!rte_pci_addr_cmp(&dev->addr, &param->addr))
+			break;
+	}
+
+	if (dev == NULL) {
+		PCI_LOG(ERR, "Could not find PCI device (" PCI_PRI_FMT ")",
+			param->addr.domain, param->addr.bus,
+			param->addr.devid, param->addr.function);
+		goto reply;
+	}
+
+	fd = rte_intr_fd_get(dev->intr_handle);
+	if (fd < 0) {
+		PCI_LOG(ERR, "Could not get fd (" PCI_PRI_FMT ")",
+			param->addr.domain, param->addr.bus,
+			param->addr.devid, param->addr.function);
+		goto reply;
+	}
+
+	reply.num_fds = 1;
+	reply.fds[0] = fd;
+reply:
+	if (rte_mp_reply(&reply, peer) != 0) {
+		PCI_LOG(ERR, "Failed to send reply: %d (" PCI_PRI_FMT ")",
+			rte_errno, param->addr.domain, param->addr.bus,
+			param->addr.devid, param->addr.function);
+		return -1;
+	}
+
+	return 0;
+}
+
+static int
+pci_uio_request_fd(struct rte_pci_device *dev)
+{
+	struct rte_mp_msg request = {}, *reply;
+	struct timespec timeout = {.tv_sec = 1, .tv_nsec = 0};
+	struct pci_uio_send_fd_param *param =
+		(struct pci_uio_send_fd_param *)request.param;
+	struct rte_mp_reply replies;
+	int rc;
+
+	strlcpy(request.name, SEND_FD_MP_KEY, sizeof(request.name));
+	memcpy(&param->addr, &dev->addr, sizeof(param->addr));
+	request.len_param = sizeof(*param);
+
+	rc = rte_mp_request_sync(&request, &replies, &timeout);
+	if (rc != 0 || replies.nb_received != 1) {
+		PCI_LOG(ERR, "Failed to request fd from primary: %d (" PCI_PRI_FMT ")",
+			rte_errno, dev->addr.domain, dev->addr.bus,
+			dev->addr.devid, dev->addr.function);
+		return -1;
+	}
+
+	reply = replies.msgs;
+	if (reply->num_fds != 1) {
+		PCI_LOG(ERR, "Received unexpected number of fds: %d (" PCI_PRI_FMT ")",
+			reply->num_fds, dev->addr.domain, dev->addr.bus,
+			dev->addr.devid, dev->addr.function);
+		free(reply);
+		return -1;
+	}
+
+	rte_intr_fd_set(dev->intr_handle, reply->fds[0]);
+	free(reply);
+
+	return 0;
 }
 
 int
@@ -220,7 +315,7 @@ pci_uio_alloc_resource(struct rte_pci_device *dev,
 	char dirname[PATH_MAX];
 	char cfgname[PATH_MAX];
 	char devname[PATH_MAX]; /* contains the /dev/uioX */
-	int uio_num, fd, uio_cfg_fd;
+	int rc, uio_num, fd, uio_cfg_fd;
 	struct rte_pci_addr *loc;
 
 	loc = &dev->addr;
@@ -232,18 +327,6 @@ pci_uio_alloc_resource(struct rte_pci_device *dev,
 			loc->domain, loc->bus, loc->devid, loc->function);
 		return 1;
 	}
-	snprintf(devname, sizeof(devname), "/dev/uio%u", uio_num);
-
-	/* save fd */
-	fd = open(devname, O_RDWR);
-	if (fd < 0) {
-		PCI_LOG(ERR, "Cannot open %s: %s", devname, strerror(errno));
-		goto error;
-	}
-
-	if (rte_intr_fd_set(dev->intr_handle, fd))
-		goto error;
-
 	snprintf(cfgname, sizeof(cfgname),
 			"/sys/class/uio/uio%u/device/config", uio_num);
 
@@ -270,8 +353,27 @@ pci_uio_alloc_resource(struct rte_pci_device *dev,
 		}
 	}
 
-	if (rte_eal_process_type() != RTE_PROC_PRIMARY)
+	if (rte_eal_process_type() != RTE_PROC_PRIMARY) {
+		if (pci_uio_request_fd(dev) != 0)
+			goto error;
 		return 0;
+	}
+
+	/*
+	 * The uio_pci_generic driver clears the bus master enable bit when the
+	 * device file is closed, so open it only in the primary process. The
+	 * secondary will get it via SCM_RIGHTS.
+	 */
+	snprintf(devname, sizeof(devname), "/dev/uio%u", uio_num);
+	/* save fd */
+	fd = open(devname, O_RDWR);
+	if (fd < 0) {
+		PCI_LOG(ERR, "Cannot open %s: %s", devname, strerror(errno));
+		goto error;
+	}
+
+	if (rte_intr_fd_set(dev->intr_handle, fd))
+		goto error;
 
 	/* allocate the mapping details for secondary processes*/
 	*uio_res = rte_zmalloc("UIO_RES", sizeof(**uio_res), 0);
@@ -280,6 +382,16 @@ pci_uio_alloc_resource(struct rte_pci_device *dev,
 		goto error;
 	}
 
+	if (pci_uio_dev_count == 0) {
+		rc = rte_mp_action_register(SEND_FD_MP_KEY, pci_uio_send_fd);
+		if (rc != 0 && rte_errno != ENOTSUP) {
+			PCI_LOG(ERR, "Failed to register multi-process callback: %d",
+				rte_errno);
+			goto error;
+		}
+	}
+
+	pci_uio_dev_count++;
 	strlcpy((*uio_res)->path, devname, sizeof((*uio_res)->path));
 	memcpy(&(*uio_res)->pci_addr, &dev->addr, sizeof((*uio_res)->pci_addr));
 
