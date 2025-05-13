@@ -138,7 +138,4 @@ expression E;
 |
 - if (E != NULL) BN_free(E);
 + BN_free(E);
-|
-- if (E != NULL) rte_net_crc_free(E);
-+ rte_net_crc_free(E);
 )
