@@ -63,8 +63,8 @@ enum rte_ring_sync_type {
  * but offset for *sync_type* and *tail* values should remain the same.
  */
 struct rte_ring_headtail {
-	volatile RTE_ATOMIC(uint32_t) head;      /**< prod/consumer head. */
-	volatile RTE_ATOMIC(uint32_t) tail;      /**< prod/consumer tail. */
+	volatile RTE_ATOMIC(uint32_t) head;      /**< prod/consumer head. */ // 头指针 ,指向下一个可以读写的位置
+	volatile RTE_ATOMIC(uint32_t) tail;      /**< prod/consumer tail. */ // 尾指针,指向已经完成的读写位置
 	union {
 		/** sync type of prod/cons */
 		enum rte_ring_sync_type sync_type;
@@ -113,11 +113,12 @@ struct rte_ring_hts_headtail {
  * values in a modulo-32bit base: that's why the overflow of the indexes is not
  * a problem.
  */
+// 环形队列结构体
 struct rte_ring {
-	alignas(RTE_CACHE_LINE_SIZE) char name[RTE_RING_NAMESIZE];
+	alignas(RTE_CACHE_LINE_SIZE) char name[RTE_RING_NAMESIZE]; // 队列名称
 	/**< Name of the ring. */
-	int flags;               /**< Flags supplied at creation. */
-	const struct rte_memzone *memzone;
+	int flags;               /**< Flags supplied at creation. */ // 创建标志
+	const struct rte_memzone *memzone; // 内存区域
 			/**< Memzone, if any, containing the rte_ring */
 	uint32_t size;           /**< Size of ring. */
 	uint32_t mask;           /**< Mask (size-1) of ring. */

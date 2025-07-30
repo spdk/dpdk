@@ -411,13 +411,20 @@ __rte_ring_do_enqueue_elem(struct rte_ring *r, const void *obj_table,
 	uint32_t prod_head, prod_next;
 	uint32_t free_entries;
 
+	// 预留空间.
+	// 1. 原子性将生产者的head从prod_head移动到prod_next,
+	// 2. 预留了prod_head到prod_next的空间, 用于写入数据.
+	// 3. 此时tail还没有提交,所以消费者是无法读取到生产者写入的数据的.
+	// 4. 多个生产者可以预留不同的空间.
 	n = __rte_ring_move_prod_head(r, is_sp, n, behavior,
 			&prod_head, &prod_next, &free_entries);
 	if (n == 0)
 		goto end;
-
+	// 在预留的空间写入数据.这个操作是无竞争的,因为每个线程都有不同的预留空间
 	__rte_ring_enqueue_elems(r, prod_head, obj_table, esize, n);
-
+	// 更新tail指针,使数据对消费者可见.
+	// 1. 必须按照顺序更新tail,确保数据的连续性.先预留空间的线程要先更新tail
+	// 2. 使用store-release语义,与消费者的load-acquire语义配合,确保数据的可见性.
 	__rte_ring_update_tail(&r->prod, prod_head, prod_next, is_sp, 1);
 end:
 	if (free_space != NULL)

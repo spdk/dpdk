@@ -65,6 +65,13 @@ static_assert(rte_memory_order_seq_cst == __ATOMIC_SEQ_CST,
 	"rte_memory_order_seq_cst == __ATOMIC_SEQ_CST");
 #endif
 
+/**
+ * @brief Load a value from an atomic variable with a specified memory order.
+ *
+ * @param ptr Pointer to the atomic variable.
+ * @param memorder Memory order for the load operation.
+ * @return The value loaded from the atomic variable.
+ */
 #define rte_atomic_load_explicit(ptr, memorder) \
 	atomic_load_explicit(ptr, memorder)
 

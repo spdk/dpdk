@@ -32,10 +32,21 @@ __rte_ring_update_tail(struct rte_ring_headtail *ht, uint32_t old_val,
 	 * If there are other enqueues/dequeues in progress that preceded us,
 	 * we need to wait for them to complete
 	 */
-	if (!single)
-		rte_wait_until_equal_32((uint32_t *)(uintptr_t)&ht->tail, old_val,
-			rte_memory_order_relaxed);
+	// 单线程模式下，直接更新尾指针
+	if (single) {
+		ht->tail = new_val;
+		return;
+	}
 
+	// 多线程模式下，使用循环等待确保尾指针更新完成, 这里就是使用relaxed的内存序,去等tail指针更新到预计值
+	rte_wait_until_equal_32((uint32_t *)(uintptr_t)&ht->tail, old_val,
+		rte_memory_order_relaxed);
+
+	//  使用release语义更新tail，确保之前的写入对其他线程可见
+	// 内存序作用 :
+	// - 可见性保证 : 确保之前的所有内存写入对其他线程可见
+	// - 同步点 : 与消费者/生产者的acquire读取形成同步对
+	// - 防止重排 : 编译器和CPU不能将此操作重排到数据写入之前
 	rte_atomic_store_explicit(&ht->tail, new_val, rte_memory_order_release);
 }
 
@@ -66,6 +77,16 @@ __rte_ring_update_tail(struct rte_ring_headtail *ht, uint32_t old_val,
  *   Actual number of objects the head was moved on
  *   If behavior == RTE_RING_QUEUE_FIXED, this will be 0 or n only
  */
+// ## 内存序设计的精妙之处
+// 1. 1.
+//    读取头指针 : relaxed - 只需要原子性，不需要同步
+// 2. 2.
+//    读取尾指针 : acquire - 必须与对方的 release 同步
+// 3. 3.
+//    CAS更新 : relaxed - 头指针更新不需要立即对其他线程可见
+// 4. 4.
+//    内存屏障 : acquire - 确保读取顺序
+
 static __rte_always_inline unsigned int
 __rte_ring_headtail_move_head(struct rte_ring_headtail *d,
 		const struct rte_ring_headtail *s, uint32_t capacity,
@@ -77,6 +98,8 @@ __rte_ring_headtail_move_head(struct rte_ring_headtail *d,
 	int success;
 	unsigned int max = n;
 
+	// 读取当前的头指针
+	// 使用 relaxed 内存序读取当前头指针，这里不需要同步约束，因为后续会有更严格的同步。
 	*old_head = rte_atomic_load_explicit(&d->head,
 			rte_memory_order_relaxed);
 	do {
@@ -84,11 +107,13 @@ __rte_ring_headtail_move_head(struct rte_ring_headtail *d,
 		n = max;
 
 		/* Ensure the head is read before tail */
+		// 内存屏障 : 确保头指针的读取在尾指针读取之前完成,防止重排,一致性保证
 		rte_atomic_thread_fence(rte_memory_order_acquire);
 
 		/* load-acquire synchronize with store-release of ht->tail
 		 * in update_tail.
 		 */
+		// acquire语义 : 与 update_tail 函数中的 store-release 形成同步对，确保看到完整的尾指针更新
 		stail = rte_atomic_load_explicit(&s->tail,
 					rte_memory_order_acquire);
 
@@ -97,6 +122,7 @@ __rte_ring_headtail_move_head(struct rte_ring_headtail *d,
 		 * *old_head > s->tail). So 'entries' is always between 0
 		 * and capacity (which is < size).
 		 */
+		// 处理了32位无符号整数的环绕问题，即使 *old_head > stail 也能正确计算。
 		*entries = (capacity + stail - *old_head);
 
 		/* check that we have enough room in ring */
@@ -108,11 +134,16 @@ __rte_ring_headtail_move_head(struct rte_ring_headtail *d,
 			return 0;
 
 		*new_head = *old_head + n;
+		// 单线程模式下，直接更新头指针
 		if (is_st) {
 			d->head = *new_head;
 			success = 1;
 		} else
 			/* on failure, *old_head is updated */
+			// 使用CAS操作，两个 relaxed 内存序的含义：
+			// - 成功时使用 relaxed ：头指针更新本身不需要额外同步
+			// - 失败时使用 relaxed ：重新读取当前值用于下次尝试
+
 			success = rte_atomic_compare_exchange_strong_explicit(
 					&d->head, old_head, *new_head,
 					rte_memory_order_relaxed,
