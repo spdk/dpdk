@@ -431,7 +431,7 @@ verify_perms(const char *dirpath)
 
 	/* if not root, check down one level first */
 	if (strcmp(dirpath, "/") != 0) {
-		static __thread char last_dir_checked[PATH_MAX];
+		static char last_dir_checked[PATH_MAX] = {};
 		char copy[PATH_MAX];
 		const char *dir;
 
