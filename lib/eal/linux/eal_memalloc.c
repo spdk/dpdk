@@ -497,6 +497,22 @@ resize_hugefile(int fd, uint64_t fa_offset, uint64_t page_sz, bool grow,
 			grow, dirty);
 }
 
+__rte_no_asan
+static inline void
+page_fault(void *addr)
+{
+	/* We need to trigger a write to the page to enforce page fault but we
+	 * can't overwrite value that is already there.
+	 * Use an atomic OR with zero to touch the page without changing its contents.
+	 *
+	 * Disable ASan instrumentation here because if the segment is already
+	 * allocated by another process and is marked as free in the shadow,
+	 * accessing this address will cause an ASan error.
+	 */
+	(void)rte_atomic_fetch_or_explicit((__rte_atomic uint64_t *)addr, 0,
+					   rte_memory_order_relaxed);
+}
+
 static int
 alloc_seg(struct rte_memseg *ms, void *addr, int socket_id,
 		struct hugepage_info *hi, unsigned int list_idx,
@@ -596,13 +612,8 @@ alloc_seg(struct rte_memseg *ms, void *addr, int socket_id,
 		goto mapped;
 	}
 
-	/* we need to trigger a write to the page to enforce page fault and
-	 * ensure that page is accessible to us, but we can't overwrite value
-	 * that is already there.
-	 * Use an atomic OR with zero to touch the page without changing its contents.
-	 */
-	(void)rte_atomic_fetch_or_explicit((__rte_atomic uint64_t *)addr, 0,
-					   rte_memory_order_relaxed);
+	/* enforce page fault and ensure that page is accessible to us */
+	page_fault(addr);
 
 	iova = rte_mem_virt2iova(addr);
 	if (iova == RTE_BAD_PHYS_ADDR) {

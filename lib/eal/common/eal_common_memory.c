@@ -266,6 +266,11 @@ eal_memseg_list_alloc(struct rte_memseg_list *msl, int reserve_flags)
 	EAL_LOG(DEBUG, "VA reserved for memseg list at %p, size %zx",
 			addr, mem_sz);
 
+	if (eal_memseg_list_map_asan_shadow(msl) != 0) {
+		RTE_LOG(ERR, EAL, "Failed to map ASan shadow region for memseg list");
+		return -1;
+	}
+
 	return 0;
 }
 
@@ -287,6 +292,11 @@ eal_memseg_list_assign(struct rte_memseg_list *msl, void *addr)
 
 	EAL_LOG(DEBUG, "VA assigned for memseg list at %p, size %zx",
 			addr, mem_sz);
+
+	if (eal_memseg_list_map_asan_shadow(msl) != 0) {
+		EAL_LOG(ERR, "Failed to map ASan shadow region for memseg list");
+		return -1;
+	}
 
 	return 0;
 }
@@ -1105,6 +1115,8 @@ rte_eal_memory_detach(void)
 			if (rte_mem_unmap(msl->base_va, msl->len) != 0)
 				EAL_LOG(ERR, "Could not unmap memory: %s",
 						rte_strerror(rte_errno));
+
+		eal_memseg_list_unmap_asan_shadow(msl);
 
 		/*
 		 * we are detaching the fbarray rather than destroying because
