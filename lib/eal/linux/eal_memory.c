@@ -1994,6 +1994,10 @@ memseg_secondary_init(void)
 	return memseg_secondary_init_legacy();
 }
 
+#ifdef RTE_MALLOC_ASAN
+static int msl_asan_shadow_fd[RTE_MAX_MEMSEG_LISTS];
+#endif
+
 int
 rte_eal_memseg_init(void)
 {
@@ -2003,6 +2007,9 @@ rte_eal_memseg_init(void)
 #ifndef RTE_EAL_NUMA_AWARE_HUGEPAGES
 	const struct internal_config *internal_conf =
 		eal_get_internal_configuration();
+#endif
+#ifdef RTE_MALLOC_ASAN
+	int msl_idx;
 #endif
 	if (getrlimit(RLIMIT_NOFILE, &lim) == 0) {
 		/* set limit to maximum */
@@ -2026,6 +2033,11 @@ rte_eal_memseg_init(void)
 		EAL_LOG(WARNING, "Please use --legacy-mem option, or recompile with NUMA support.");
 	}
 #endif
+#ifdef RTE_MALLOC_ASAN
+	for (msl_idx = 0; msl_idx < RTE_MAX_MEMSEG_LISTS; msl_idx++) {
+		msl_asan_shadow_fd[msl_idx] = -1;
+	}
+#endif
 
 	return rte_eal_process_type() == RTE_PROC_PRIMARY ?
 #ifndef RTE_ARCH_64
@@ -2042,6 +2054,7 @@ eal_memseg_list_map_asan_shadow(struct rte_memseg_list *msl)
 {
 	const struct internal_config *internal_conf =
 			eal_get_internal_configuration();
+	int msl_idx = msl - rte_eal_get_configuration()->mem_config->memsegs;
 	int shm_oflag;
 	char shm_path[PATH_MAX];
 	int shm_fd;
@@ -2081,7 +2094,7 @@ eal_memseg_list_map_asan_shadow(struct rte_memseg_list *msl)
 		}
 	}
 
-	msl->shm_fd = shm_fd;
+	msl_asan_shadow_fd[msl_idx] = shm_fd;
 
 	return 0;
 }
@@ -2091,12 +2104,14 @@ eal_memseg_list_unmap_asan_shadow(struct rte_memseg_list *msl)
 {
 	const struct internal_config *internal_conf =
 			eal_get_internal_configuration();
+	int msl_idx = msl - rte_eal_get_configuration()->mem_config->memsegs;
+	int *shm_fd = &msl_asan_shadow_fd[msl_idx];
 
-	if (msl->shm_fd == -1)
+	if (*shm_fd == -1)
 		return;
 
-	close(msl->shm_fd);
-	msl->shm_fd = -1;
+	close(*shm_fd);
+	*shm_fd = -1;
 
 	if (munmap(ASAN_MEM_TO_SHADOW(msl->base_va),
 		   msl->len >> ASAN_SHADOW_SCALE) != 0)
@@ -2110,5 +2125,11 @@ eal_memseg_list_unmap_asan_shadow(struct rte_memseg_list *msl)
 			 msl->memseg_arr.name);
 		shm_unlink(shm_path);
 	}
+}
+
+int
+eal_memseg_list_get_asan_shadow_fd(int msl_idx)
+{
+	return msl_asan_shadow_fd[msl_idx];
 }
 #endif
